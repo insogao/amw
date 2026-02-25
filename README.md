@@ -92,6 +92,32 @@ Variable input options:
 - `--vars-file <path>` JSON object
 - `--vars-json '{"query":"...","lang":"..."}'`
 
+## Grep-First Matching Contract (Low Token)
+
+To reduce token usage, reserve one single-line field in each trajectory JSON:
+
+```json
+"amw_match_line": "amw site:hotmail.com task:send_email flow:compose_send_v1 key:send key:email key:<zh_keyword>"
+```
+
+Rules:
+- Keep this field on one physical line. Do not add line breaks.
+- Keep stable machine tags in ASCII: `site:`, `task:`, `flow:`, `key:`.
+- Chinese is supported in `key:` values when files are UTF-8 encoded.
+- Put reusable intent words in `key:` values (English + Chinese synonyms).
+
+PowerShell search (AND by chained `rg` filters):
+
+```powershell
+rg -n --glob "*.json" "\"amw_match_line\"\\s*:\\s*\".*\"" examples data `
+| rg -i "amw" `
+| rg -i "site:hotmail\\.com" `
+| rg -i "task:send_email" `
+| rg -i "key:send|key:<zh_keyword>"
+```
+
+This returns only lines/files matching all required filters.
+
 ## Example Use Cases
 
 - Bilibili login QR capture (for human scan handoff):  

@@ -109,6 +109,22 @@ Prefer `copy_image_original` whenever the user asks to "save original image" rat
 4. Keep branch count <= 2
 5. Keep `assert_*` checks at the tail
 
+### Single-Line Match Field (Required)
+
+For grep-first low-token retrieval, each JSON should include one reserved single-line field:
+
+```json
+"amw_match_line": "amw site:example.com task:example_task flow:example_v1 key:foo key:bar key:<zh_keyword>"
+```
+
+Strict rules:
+
+1. `amw_match_line` must stay on one physical line (no `\n` or wrapped multi-line values).
+2. Use ASCII tags only: `site:`, `task:`, `flow:`, `key:`.
+3. Chinese is allowed in `key:` values when files are UTF-8 encoded.
+4. Do not remove `amw` anchor token.
+5. Prefer adding new `key:` tokens instead of changing `flow:` unless behavior truly changes.
+
 For human verification:
 
 1. Detect blocker (`eval_js` or error symptoms)
@@ -138,3 +154,7 @@ Inspect:
 
 - `npm run amw -- list --store-dir ./data/<store>`
 - `npm run amw -- search --site <site> --task-type <task_type> --intent "<intent>" --store-dir ./data/<store>`
+
+Grep-first retrieval (AND by chain):
+
+`rg -n --glob "*.json" "\"amw_match_line\"\\s*:\\s*\".*\"" examples data | rg -i "amw" | rg -i "site:<domain>" | rg -i "task:<task_type>" | rg -i "<keyword_or_zh_keyword>"`
