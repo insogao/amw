@@ -1,0 +1,74 @@
+{
+  "steps": [
+    {
+      "id": "open_bilibili_home",
+      "action": "open",
+      "target": "https://www.bilibili.com"
+    },
+    {
+      "id": "wait_home_loaded",
+      "action": "wait",
+      "target": "networkidle",
+      "optional": true
+    },
+    {
+      "id": "click_login_by_selector",
+      "action": "click",
+      "target": ".header-login-entry, .go-login-btn, .right-entry__outside.go-login-btn",
+      "optional": true
+    },
+    {
+      "id": "click_login_by_text",
+      "action": "click_text",
+      "value": "登录",
+      "optional": true,
+      "params": {
+        "exact": false
+      }
+    },
+    {
+      "id": "wait_login_layer",
+      "action": "wait",
+      "target": "2500"
+    },
+    {
+      "id": "mark_qr_target",
+      "action": "eval_js",
+      "params": {
+        "save_as": "qr_detect",
+        "script": "const existing=document.querySelector('#amw_qr_target'); if(existing){existing.removeAttribute('id');} const imgs=[...document.querySelectorAll('img')]; const score=(img)=>{const src=(img.getAttribute('src')||img.src||'').toLowerCase(); const cls=String(img.className||'').toLowerCase(); const alt=String(img.getAttribute('alt')||'').toLowerCase(); const w=img.naturalWidth||img.width||0; const h=img.naturalHeight||img.height||0; let s=0; if(src.includes('qrcode')||src.includes('qr')) s+=6; if(cls.includes('qrcode')||cls.includes('qr')) s+=4; if(alt.includes('二维码')||alt.includes('qr')) s+=3; if(w>=120&&h>=120) s+=2; return s;}; const ranked=imgs.map((img)=>({img,score:score(img)})).filter((x)=>x.score>0).sort((a,b)=>b.score-a.score); const top=ranked[0]?.img||null; if(!top){return {found:false,count:0};} top.id='amw_qr_target'; const rect=top.getBoundingClientRect(); return {found:true,count:ranked.length,src:top.getAttribute('src')||top.src||'',width:rect.width,height:rect.height};"
+      }
+    },
+    {
+      "id": "capture_qr_image",
+      "action": "copy_image_original",
+      "target": "#amw_qr_target",
+      "params": {
+        "path": "./artifacts/bilibili_login_qr.png",
+        "save_as": "qr_capture"
+      }
+    },
+    {
+      "id": "assert_qr_capture",
+      "action": "assert_file",
+      "params": {
+        "path": "./artifacts/bilibili_login_qr.png",
+        "min_bytes": 1024
+      }
+    },
+    {
+      "id": "capture_login_page",
+      "action": "screenshot",
+      "params": {
+        "path": "./artifacts/bilibili_login_page.png",
+        "full_page": true,
+        "save_as": "login_page_capture"
+      }
+    },
+    {
+      "id": "human_scan_qr",
+      "action": "human_handoff",
+      "value": "已保存登录二维码：{{vars.qr_capture.path}}。请扫码登录后按 Enter 继续。"
+    }
+  ]
+}

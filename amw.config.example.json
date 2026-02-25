@@ -1,0 +1,9 @@
+{
+  "headed": true,
+  "hold_open_ms": 30000,
+  "session": "amw",
+  "profile": "main",
+  "profile_dir": "./profiles",
+  "binary": "agent-browser",
+  "store_dir": "./data"
+}

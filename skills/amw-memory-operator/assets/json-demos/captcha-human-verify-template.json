@@ -1,0 +1,44 @@
+{
+  "steps": [
+    {
+      "id": "open_site",
+      "action": "open",
+      "target": "https://example.com/login"
+    },
+    {
+      "id": "submit_login",
+      "action": "click",
+      "target": "button[type='submit']"
+    }
+  ],
+  "branches": {
+    "human_verify": {
+      "enabled": true,
+      "trigger": {
+        "error_contains_any": ["captcha", "verification", "robot check"],
+        "snapshot_contains_any": ["captcha", "please verify", "human verification"]
+      },
+      "steps": [
+        {
+          "id": "capture_verify_panel",
+          "action": "screenshot",
+          "params": {
+            "path": "./artifacts/human_verify_panel.png",
+            "selector": ".captcha, .verify, [class*='captcha'], [class*='verify']"
+          },
+          "optional": true
+        },
+        {
+          "id": "human_finish_verification",
+          "action": "human_handoff",
+          "value": "Please complete verification manually, then press Enter."
+        }
+      ]
+    }
+  },
+  "branch_policy": {
+    "max_branches": 2,
+    "on_step_error": "human_verify",
+    "on_human_verify_error": "re_explore"
+  }
+}

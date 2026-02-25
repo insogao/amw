@@ -1,0 +1,37 @@
+{
+  "steps": [
+    {
+      "id": "open_google",
+      "action": "open",
+      "target": "https://www.google.com"
+    },
+    {
+      "id": "wait_loaded",
+      "action": "wait",
+      "target": "networkidle"
+    },
+    {
+      "id": "fill_query",
+      "action": "fill",
+      "target": "textarea[name='q']",
+      "value": "{{vars.query}}"
+    },
+    {
+      "id": "submit_query",
+      "action": "press",
+      "target": "Enter"
+    },
+    {
+      "id": "wait_results",
+      "action": "wait",
+      "target": "networkidle",
+      "guards": [
+        {
+          "kind": "url_contains",
+          "value": "google"
+        }
+      ]
+    }
+  ]
+}
+

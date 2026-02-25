@@ -1,0 +1,125 @@
+{
+  "steps": [
+    {
+      "id": "open_36kr_home",
+      "action": "open",
+      "target": "https://www.36kr.com/"
+    },
+    {
+      "id": "wait_home_loaded",
+      "action": "wait",
+      "target": "networkidle",
+      "optional": true
+    },
+    {
+      "id": "extract_hot_top3",
+      "action": "eval_js",
+      "params": {
+        "save_as": "hot3",
+        "script": "const normalize=(raw)=>new URL(raw, location.origin).toString().split('#')[0].split('?')[0]; const pickFromDom=()=>{const anchors=[...document.querySelectorAll('a[href*=\"/p/\"]')]; const seen=new Set(); const out=[]; for (const a of anchors){const raw=a.getAttribute('href')||''; if(!raw) continue; const url=normalize(raw); if(!/\\/p\\/\\d+$/.test(url)) continue; if(!url.includes('36kr.com/p/')) continue; if(seen.has(url)) continue; const title=(a.getAttribute('title')||a.textContent||'').replace(/\\s+/g,' ').trim(); if(title.length<8) continue; seen.add(url); out.push({title,url}); if(out.length>=3) break;} return out;}; const pickFromLdJson=()=>{const scripts=[...document.querySelectorAll('script[type=\"application/ld+json\"]')]; const seen=new Set(); const out=[]; for(const s of scripts){let parsed; try{parsed=JSON.parse(s.textContent||'null');}catch{continue;} const arr=Array.isArray(parsed)?parsed:[parsed]; for(const item of arr){const candidates=[item?.url,item?.mainEntityOfPage?.['@id'],item?.mainEntityOfPage].filter(Boolean); for(const c of candidates){const url=normalize(String(c)); if(!/\\/p\\/\\d+$/.test(url)) continue; if(seen.has(url)) continue; const title=String(item?.headline||item?.name||'').replace(/\\s+/g,' ').trim(); if(title.length<8) continue; seen.add(url); out.push({title,url}); if(out.length>=3) return out;}}} return out;}; const items=pickFromDom(); if(items.length<3){const fallback=pickFromLdJson(); for(const x of fallback){if(items.find((i)=>i.url===x.url)) continue; items.push(x); if(items.length>=3) break;}} return {page_url:location.href,count:items.length,items};"
+      }
+    },
+    {
+      "id": "write_top3_index",
+      "action": "write_markdown",
+      "params": {
+        "path": "./artifacts/36kr_hot_top3_full.md",
+        "title": "36Kr Top3 Articles",
+        "items_var": "hot3.items"
+      }
+    },
+    {
+      "id": "assert_top3_index",
+      "action": "assert_markdown",
+      "params": {
+        "path": "./artifacts/36kr_hot_top3_full.md",
+        "min_links": 3
+      }
+    },
+    {
+      "id": "open_article_1",
+      "action": "open",
+      "target": "{{vars.hot3.items.0.url}}"
+    },
+    {
+      "id": "extract_article_1",
+      "action": "eval_js",
+      "params": {
+        "save_as": "article1",
+        "script": "const title=(document.querySelector('h1')?.innerText || document.title || '').replace(/\\s+/g,' ').trim(); const roots=[...document.querySelectorAll('article p, .article-content p, .kr-rich-text p, main p')]; let paras=roots.map((x)=>(x.textContent||'').replace(/\\s+/g,' ').trim()).filter(Boolean); if(paras.length===0){const raw=(document.querySelector('article,main')?.textContent || document.body?.innerText || '').split(/\\n+/).map((s)=>s.replace(/\\s+/g,' ').trim()).filter((s)=>s.length>30); paras=raw.slice(0,120);} const content=paras.join('\\n\\n').slice(0,15000); return {title,url:location.href,content};"
+      }
+    },
+    {
+      "id": "append_article_1",
+      "action": "append_markdown_section",
+      "params": {
+        "path": "./artifacts/36kr_hot_top3_full.md",
+        "heading": "{{vars.article1.title}}",
+        "url": "{{vars.article1.url}}",
+        "content": "{{vars.article1.content}}"
+      }
+    },
+    {
+      "id": "open_article_2",
+      "action": "open",
+      "target": "{{vars.hot3.items.1.url}}"
+    },
+    {
+      "id": "extract_article_2",
+      "action": "eval_js",
+      "params": {
+        "save_as": "article2",
+        "script": "const title=(document.querySelector('h1')?.innerText || document.title || '').replace(/\\s+/g,' ').trim(); const roots=[...document.querySelectorAll('article p, .article-content p, .kr-rich-text p, main p')]; let paras=roots.map((x)=>(x.textContent||'').replace(/\\s+/g,' ').trim()).filter(Boolean); if(paras.length===0){const raw=(document.querySelector('article,main')?.textContent || document.body?.innerText || '').split(/\\n+/).map((s)=>s.replace(/\\s+/g,' ').trim()).filter((s)=>s.length>30); paras=raw.slice(0,120);} const content=paras.join('\\n\\n').slice(0,15000); return {title,url:location.href,content};"
+      }
+    },
+    {
+      "id": "append_article_2",
+      "action": "append_markdown_section",
+      "params": {
+        "path": "./artifacts/36kr_hot_top3_full.md",
+        "heading": "{{vars.article2.title}}",
+        "url": "{{vars.article2.url}}",
+        "content": "{{vars.article2.content}}"
+      }
+    },
+    {
+      "id": "open_article_3",
+      "action": "open",
+      "target": "{{vars.hot3.items.2.url}}"
+    },
+    {
+      "id": "extract_article_3",
+      "action": "eval_js",
+      "params": {
+        "save_as": "article3",
+        "script": "const title=(document.querySelector('h1')?.innerText || document.title || '').replace(/\\s+/g,' ').trim(); const roots=[...document.querySelectorAll('article p, .article-content p, .kr-rich-text p, main p')]; let paras=roots.map((x)=>(x.textContent||'').replace(/\\s+/g,' ').trim()).filter(Boolean); if(paras.length===0){const raw=(document.querySelector('article,main')?.textContent || document.body?.innerText || '').split(/\\n+/).map((s)=>s.replace(/\\s+/g,' ').trim()).filter((s)=>s.length>30); paras=raw.slice(0,120);} const content=paras.join('\\n\\n').slice(0,15000); return {title,url:location.href,content};"
+      }
+    },
+    {
+      "id": "append_article_3",
+      "action": "append_markdown_section",
+      "params": {
+        "path": "./artifacts/36kr_hot_top3_full.md",
+        "heading": "{{vars.article3.title}}",
+        "url": "{{vars.article3.url}}",
+        "content": "{{vars.article3.content}}"
+      }
+    },
+    {
+      "id": "assert_final_md",
+      "action": "assert_markdown",
+      "params": {
+        "path": "./artifacts/36kr_hot_top3_full.md",
+        "min_links": 6
+      }
+    },
+    {
+      "id": "assert_final_file",
+      "action": "assert_file",
+      "params": {
+        "path": "./artifacts/36kr_hot_top3_full.md",
+        "min_bytes": 2048
+      }
+    }
+  ]
+}

@@ -1,0 +1,192 @@
+# Agent Memory Workbench
+
+Standalone sandbox for building a memory-driven browser automation agent.
+
+This folder is intentionally isolated from:
+- `../Clawome`
+- `../agent-browser`
+
+No source files are modified in those projects.
+
+## Goal
+
+Build a reusable execution loop:
+
+1. Try replaying a previously successful trajectory.
+2. Validate each step with guards.
+3. If replay fails, fallback to exploratory steps.
+4. Save successful exploration as a new trajectory version.
+5. Keep structured run logs for later summarization.
+
+## Architecture
+
+- `MemoryStore` (SQLite): stores trajectories and execution stats.
+- `HybridRetriever`: finds candidate trajectories with hard filters + lexical + semantic-lite score.
+- `AgentBrowserAdapter`: wraps `agent-browser` SDK (`dist/browser.js`) directly.
+- `ActionRegistry`: action dispatch table (`action -> handler`) for JSON-driven tasks.
+- `TrajectoryExecutor`: replays steps, checks guards, supports human handoff.
+- `RunLogger`: writes JSONL events and run summary.
+- `Orchestrator`: replay-first, fallback-explore-second.
+
+## Framework Contract
+
+This project is intentionally **configuration-driven**:
+
+- Add new tasks by writing JSON steps.
+- Do not change core engine code for each new task.
+- AI should focus on intent matching and fixing failed trajectories.
+- Successful paths are persisted as reusable JSON memory.
+
+## JSON Actions
+
+Current built-in actions:
+
+- `open`, `click`, `click_text`, `fill`, `type`, `press`
+- `wait`, `snapshot`, `get_url`
+- `screenshot`, `assert_file`
+- `copy_text`, `copy_image`, `copy_image_original`, `paste_text`, `paste_image`
+- `eval_js` (extract structured data from page)
+- `write_markdown`, `append_markdown_section` (persist extracted data as `.md`)
+- `assert_markdown` (acceptance check)
+- `human_handoff` (pause for manual login/QR)
+
+Use `params.save_as` to persist an action result into runtime variables and reuse it later.
+
+Screenshot/copy-image supports three granularities:
+- Full page: `{"action":"screenshot","params":{"path":"...","full_page":true}}`
+- Element region: `{"action":"screenshot","params":{"path":"...","selector":"#target"}}`
+- Coordinate region: `{"action":"screenshot","params":{"path":"...","clip":{"x":100,"y":200,"width":300,"height":220}}}`
+
+For image preservation, prefer original-source copy:
+- `{"action":"copy_image_original","target":"img#qr","params":{"path":"./artifacts/qr.png"}}`
+- Or `copy_image` with `{"mode":"original"}` when selector is available.
+
+## Parametric Reuse (Important)
+
+Keep flow stable in JSON, inject variable inputs at runtime.
+
+Example step:
+
+```json
+{
+  "id": "fill_query",
+  "action": "fill",
+  "target": "textarea[name='q']",
+  "value": "{{vars.query}}"
+}
+```
+
+Run with different queries without changing trajectory JSON:
+
+```bash
+npm run amw -- run ^
+  --site google.com ^
+  --task-type web_search ^
+  --intent "search on google" ^
+  --fallback-steps-file ./examples/google_search_parametric.json ^
+  --query "刘亦菲 照片"
+```
+
+Variable input options:
+- `--query <text>` (shortcut to `vars.query`)
+- `--vars-file <path>` JSON object
+- `--vars-json '{"query":"...","lang":"..."}'`
+
+## Example Use Cases
+
+- Bilibili login QR capture (for human scan handoff):  
+  `examples/bilibili_qr_login_capture.json`
+- 36Kr hot Top3 + full article export to markdown:  
+  `examples/36kr_hot_top3_full_articles_to_md.json`
+  (uses 36Kr homepage feed, since old `/hot-list/catalog/0` no longer returns list data)
+
+## Quick Start
+
+1. Ensure `agent-browser` is available on PATH.
+2. Node.js 22+ is required.
+3. Run from this folder:
+
+```bash
+npm run amw -- list --store-dir ./data
+```
+
+3. Record a trajectory from a steps file:
+
+```bash
+npm run amw -- record ^
+  --site google.com ^
+  --task-type web_search ^
+  --intent "search openai news" ^
+  --steps-file ./examples/google_search_steps.json ^
+  --store-dir ./data ^
+  --session amw-demo
+```
+
+4. Run replay-first with fallback:
+
+```bash
+npm run amw -- run ^
+  --site google.com ^
+  --task-type web_search ^
+  --intent "search openai news" ^
+  --fallback-steps-file ./examples/google_search_steps.json ^
+  --store-dir ./data ^
+  --session amw-demo
+```
+
+## Human Handoff
+
+Add a `human_handoff` step in your steps file:
+
+```json
+{
+  "id": "login_qr",
+  "action": "human_handoff",
+  "value": "Please complete QR login in browser, then press Enter."
+}
+```
+
+Execution pauses and waits for user confirmation before continuing.
+
+## Node.js Source
+
+- CLI: `src-node/cli.js`
+- Core modules: `src-node/*.js`
+- Tests: `tests-node/*.test.js`
+- Config example: `amw.config.example.json`
+
+## Headed / Headless
+
+Set default behavior in `amw.config.json`:
+
+```json
+{
+  "headed": true,
+  "hold_open_ms": 30000,
+  "profile": "main",
+  "profile_dir": "./profiles"
+}
+```
+
+You can still override via CLI:
+
+```bash
+npm run amw -- run ... --headed false
+npm run amw -- run ... --headed true --hold-open-ms 30000
+npm run amw -- run ... --profile main
+```
+
+`hold_open_ms` is useful for visible/manual workflows (QR login, human takeover), so the browser does not close immediately after steps finish.
+
+`profile` controls persistent browser identity (cookies/localStorage/login state). Reusing the same profile preserves login across runs.
+
+`session` is still a task/run label for orchestration and logs; it is not the browser identity container.
+
+Run tests:
+
+```bash
+npm test
+```
+
+No API key is required for deterministic replay/explore runs.
+An API key is only needed if you later add LLM planning or embeddings.

@@ -1,0 +1,20 @@
+{
+  "name": "agent-memory-workbench",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Replay-first browser automation workbench with trajectory memory and human handoff (Node.js)",
+  "bin": {
+    "amw": "./src-node/cli.js"
+  },
+  "scripts": {
+    "amw": "node ./src-node/cli.js",
+    "test": "node --test ./tests-node/*.test.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "dependencies": {
+    "agent-browser": "^0.14.0"
+  }
+}

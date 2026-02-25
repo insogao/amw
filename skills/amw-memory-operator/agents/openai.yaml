@@ -1,0 +1,3 @@
+interface:
+  display_name: "AMW Memory Operator"
+  short_description: "Replay-first browser memory operator with two-branch JSON policy"

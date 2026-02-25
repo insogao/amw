@@ -1,0 +1,62 @@
+{
+  "steps": [
+    {
+      "id": "open_login",
+      "action": "open",
+      "target": "https://www.bilibili.com"
+    },
+    {
+      "id": "enter_login_panel",
+      "action": "click_text",
+      "value": "Login",
+      "optional": true,
+      "params": {
+        "exact": false
+      }
+    },
+    {
+      "id": "wait_login_layer",
+      "action": "wait",
+      "target": "2000"
+    }
+  ],
+  "branches": {
+    "human_verify": {
+      "enabled": true,
+      "trigger": {
+        "error_contains_any": ["qr", "qrcode", "verification"],
+        "snapshot_contains_any": ["scan", "qr code", "please login"]
+      },
+      "steps": [
+        {
+          "id": "mark_qr_node",
+          "action": "eval_js",
+          "params": {
+            "save_as": "qr_detect",
+            "script": "const img=document.querySelector(\"img[src*='qrcode'], img[class*='qr'], [class*='qrcode'] img\"); if(img){img.id='amw_qr_target'; return {found:true};} return {found:false};"
+          }
+        },
+        {
+          "id": "save_qr_original",
+          "action": "copy_image_original",
+          "target": "#amw_qr_target",
+          "params": {
+            "path": "./artifacts/login_qr.png",
+            "save_as": "qr_capture"
+          },
+          "optional": true
+        },
+        {
+          "id": "human_scan_qr",
+          "action": "human_handoff",
+          "value": "QR saved to {{vars.qr_capture.path}}. Please scan and press Enter."
+        }
+      ]
+    }
+  },
+  "branch_policy": {
+    "max_branches": 2,
+    "on_step_error": "human_verify",
+    "on_human_verify_error": "re_explore"
+  }
+}
