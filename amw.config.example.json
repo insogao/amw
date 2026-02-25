@@ -1,5 +1,6 @@
 {
   "headed": true,
+  "disable_replay": false,
   "hold_open_ms": 30000,
   "session": "amw",
   "profile": "main",

@@ -14,6 +14,36 @@ Use this skill when the user wants to run, debug, or evolve browser automation i
 - Artifact extraction (markdown, screenshot, image copy, QR capture)
 - Run-log based debugging with minimal JSON edits
 
+## Trajectory Governance (Required)
+
+Directory policy (do not mix):
+
+1. `examples/`
+Only curated official examples/templates. Treat as mostly read-only.
+2. `trajectories/ready/`
+User-verified reusable trajectories. This is the primary grep/search target.
+3. `trajectories/tmp/`
+AI-generated or in-test trajectories. Temporary only. Do not treat as stable memory.
+4. `trajectories/archive/`
+Deprecated but kept versions for rollback/reference.
+
+Lifecycle policy:
+
+1. New trajectory starts in `trajectories/tmp/`.
+2. Run `validate` and execute with `--disable-replay true`.
+3. After repeated success, promote to `trajectories/ready/`.
+4. If replaced, move old version to `trajectories/archive/`.
+
+Hard constraints:
+
+1. Do not create new user-generated JSON directly under `examples/` unless user explicitly requests it.
+2. Do not commit temporary trajectories from `trajectories/tmp/`.
+3. If a JSON is created in the wrong place, move it and explain the move.
+
+ACK protocol before generating/modifying trajectory files:
+
+`Governance ACK: new JSON -> trajectories/tmp, reusable JSON -> trajectories/ready, grep default -> trajectories/ready.`
+
 ## Hard Rule: Max Two Branches
 
 Only allow:
@@ -29,6 +59,9 @@ Do not introduce multi-level branch trees unless the user explicitly asks.
 - Replay/debug checklist: `references/replay-debug-checklist.md`
 - JSON demos: `assets/json-demos/*.json`
 - Skill UI metadata: `agents/openai.yaml`
+- Curated examples: `examples/*.json`
+- Reusable trajectories: `trajectories/ready/**/*.json`
+- Temporary trajectories: `trajectories/tmp/*.json`
 
 Always copy the nearest demo JSON from `assets/json-demos/` and minimally adapt selectors/vars.
 
@@ -36,17 +69,24 @@ Always copy the nearest demo JSON from `assets/json-demos/` and minimally adapt 
 
 ### Local
 
-1. `cd d:\work\提示词生成\agent-memory-workbench`
+1. `cd <your-workspace>/agent-memory-workbench`
 2. `npm install`
 3. Use:
    - `npm run amw -- list --store-dir ./data`
    - `npm run amw -- run ...`
+   - `npm run amw -- validate --steps-file ./examples/<file>.json`
 
 If running outside project root:
 
-`npm --prefix d:\work\提示词生成\agent-memory-workbench run amw -- <command>`
+`npm --prefix <path-to-agent-memory-workbench> run amw -- <command>`
+
+Example from parent workspace:
+
+`npm --prefix ./agent-memory-workbench run amw -- <command>`
 
 Profile defaults to `main` (persistent login identity). Use `--profile <name>` to switch identities.
+Browser mode defaults to `headed=true` (visible browser window). Use `--headed false` only when the user explicitly asks for headless.
+Use `--disable-replay true` when validating new fallback steps and you need to bypass memory hits.
 
 ### Headed debug mode
 
@@ -66,7 +106,10 @@ Current mode is local-first. For distribution later:
 
 - CLI: `src-node/cli.js`
 - Adapter/actions: `src-node/agentBrowserAdapter.js`, `src-node/actionRegistry.js`
-- Project examples: `examples/*.json`
+- Curated examples: `examples/*.json`
+- Reusable trajectories: `trajectories/ready/`
+- Temporary trajectories: `trajectories/tmp/`
+- Archived trajectories: `trajectories/archive/`
 - Artifacts: `artifacts/`
 - Runs: `data/<store>/runs/<run_id>/events.jsonl` and `summary.json`
 - Memory DB: `data/<store>/memory.db`
@@ -100,6 +143,7 @@ Prefer `copy_image_original` whenever the user asks to "save original image" rat
 3. If replay misses/fails, run fallback steps
 4. On success, persist trajectory
 5. Compare `summary.json` `mode` and latency (`replay` vs `explore`)
+6. For grep-first manual selection, search `trajectories/ready/` first, not `examples/`
 
 ## JSON Editing Policy
 
@@ -143,12 +187,21 @@ On failure, inspect in order:
 3. Artifact correctness in `artifacts/`
 
 Patch only the failed segment, then re-run once in headed mode.
+For fallback verification, add `--disable-replay true` so replay memory does not mask issues.
 
 ## Command Templates
 
 Run:
 
-`npm run amw -- run --site <site> --task-type <task_type> --intent "<intent>" --fallback-steps-file ./examples/<file>.json --store-dir ./data/<store> --session <session> --headed true --hold-open-ms 30000`
+`npm run amw -- run --site <site> --task-type <task_type> --intent "<intent>" --fallback-steps-file ./trajectories/ready/<file>.json --store-dir ./data/<store> --session <session> --headed true --hold-open-ms 30000`
+
+Run (force fallback):
+
+`npm run amw -- run --site <site> --task-type <task_type> --intent "<intent>" --fallback-steps-file ./trajectories/tmp/<file>.json --store-dir ./data/<store> --disable-replay true`
+
+Validate JSON:
+
+`npm run amw -- validate --steps-file ./trajectories/tmp/<file>.json`
 
 Inspect:
 
@@ -157,4 +210,4 @@ Inspect:
 
 Grep-first retrieval (AND by chain):
 
-`rg -n --glob "*.json" "\"amw_match_line\"\\s*:\\s*\".*\"" examples data | rg -i "amw" | rg -i "site:<domain>" | rg -i "task:<task_type>" | rg -i "<keyword_or_zh_keyword>"`
+`rg -n --glob "*.json" "\"amw_match_line\"\\s*:\\s*\".*\"" trajectories/ready | rg -i "amw" | rg -i "site:<domain>" | rg -i "task:<task_type>" | rg -i "<keyword_or_zh_keyword>"`

@@ -35,44 +35,49 @@ export class MemoryOrchestrator {
     });
     try {
       logger.event("run_start", { request });
-      const hits = this.retriever.search({
-        site: request.site,
-        taskType: request.task_type,
-        intent: request.intent,
-        topK: 3
-      });
-      logger.event("retrieval_result", {
-        hits: hits.map((h) => ({
-          trajectory_id: h.trajectory.trajectory_id,
-          score: Number(h.score.toFixed(4)),
-          detail: Object.fromEntries(
-            Object.entries(h.detail).map(([k, v]) => [k, Number(v.toFixed(4))])
-          )
-        }))
-      });
-
-      if (hits.length > 0) {
-        const hit = hits[0];
-        const replayResult = await executor.replay(hit.trajectory);
-        this.store.recordResult(hit.trajectory.trajectory_id, replayResult.success, replayResult.latency_ms);
-        if (replayResult.success) {
-          const summary = logger.summarize("success", {
-            mode: "replay",
-            trajectory_id: hit.trajectory.trajectory_id,
-            executed_steps: replayResult.executed_steps
-          });
-          return {
-            success: true,
-            mode: "replay",
-            result: replayResult,
-            selected_trajectory_id: hit.trajectory.trajectory_id,
-            summary
-          };
-        }
-        logger.event("replay_failed", {
-          trajectory_id: hit.trajectory.trajectory_id,
-          reason: replayResult.reason
+      const disableReplay = Boolean(request.disable_replay);
+      if (!disableReplay) {
+        const hits = this.retriever.search({
+          site: request.site,
+          taskType: request.task_type,
+          intent: request.intent,
+          topK: 3
         });
+        logger.event("retrieval_result", {
+          hits: hits.map((h) => ({
+            trajectory_id: h.trajectory.trajectory_id,
+            score: Number(h.score.toFixed(4)),
+            detail: Object.fromEntries(
+              Object.entries(h.detail).map(([k, v]) => [k, Number(v.toFixed(4))])
+            )
+          }))
+        });
+
+        if (hits.length > 0) {
+          const hit = hits[0];
+          const replayResult = await executor.replay(hit.trajectory);
+          this.store.recordResult(hit.trajectory.trajectory_id, replayResult.success, replayResult.latency_ms);
+          if (replayResult.success) {
+            const summary = logger.summarize("success", {
+              mode: "replay",
+              trajectory_id: hit.trajectory.trajectory_id,
+              executed_steps: replayResult.executed_steps
+            });
+            return {
+              success: true,
+              mode: "replay",
+              result: replayResult,
+              selected_trajectory_id: hit.trajectory.trajectory_id,
+              summary
+            };
+          }
+          logger.event("replay_failed", {
+            trajectory_id: hit.trajectory.trajectory_id,
+            reason: replayResult.reason
+          });
+        }
+      } else {
+        logger.event("retrieval_skipped", { reason: "disable_replay=true" });
       }
 
       if (!fallbackSteps || fallbackSteps.length === 0) {

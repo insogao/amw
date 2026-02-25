@@ -26,6 +26,7 @@ Commands:
   list        List stored trajectories
   search      Search trajectory memory
   record      Execute steps and save successful trajectory
+  validate    Validate a trajectory JSON/steps file
   run         Replay-first run with optional fallback exploration
 
 Common options:
@@ -37,7 +38,8 @@ Common options:
   --profile <name>     Browser identity profile (default: main)
   --profile-dir <path> Profile root dir (default: ./profiles)
   --binary <path>      Default: agent-browser
-  --headed <bool>      Default: false
+  --headed <bool>      Default: true
+  --disable-replay <bool> Skip memory replay and force fallback steps
   --hold-open-ms <n>   Keep browser open for N ms before auto-close
   --query <text>       Shortcut for vars.query
   --vars-file <path>   JSON object for runtime variables
@@ -48,6 +50,7 @@ Config file:
   Example:
     {
       "headed": true,
+      "disable_replay": false,
       "hold_open_ms": 30000,
       "session": "amw",
       "profile": "main",
@@ -85,9 +88,24 @@ function mustGet(opts, key) {
   return opts[key];
 }
 
+function parseJsonFile(filePath) {
+  const absolute = path.resolve(String(filePath));
+  const raw = fs.readFileSync(absolute, "utf-8");
+  const hasBom = raw.charCodeAt(0) === 0xfeff;
+  const clean = hasBom ? raw.slice(1) : raw;
+  let parsed;
+  try {
+    parsed = JSON.parse(clean);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    throw new Error(`Invalid JSON in ${absolute}: ${msg}`);
+  }
+  return { parsed, hasBom, absolute };
+}
+
 function loadSteps(filePath) {
-  const raw = JSON.parse(fs.readFileSync(filePath, "utf-8"));
-  const stepList = Array.isArray(raw) ? raw : raw.steps;
+  const { parsed } = parseJsonFile(filePath);
+  const stepList = Array.isArray(parsed) ? parsed : parsed.steps;
   if (!Array.isArray(stepList)) {
     throw new Error("steps file must be a JSON array or object with 'steps'");
   }
@@ -114,6 +132,98 @@ function parseRuntimeVars(opts) {
     vars.query = String(opts.query);
   }
   return vars;
+}
+
+function validateStepsPayload(payload) {
+  const errors = [];
+  const warnings = [];
+  const stepList = Array.isArray(payload) ? payload : payload?.steps;
+
+  if (!Array.isArray(stepList)) {
+    errors.push("steps file must be a JSON array or object with 'steps'");
+    return { errors, warnings, step_count: 0 };
+  }
+
+  if (!Array.isArray(payload) && payload && typeof payload === "object") {
+    if (payload.amw_match_line === undefined) {
+      warnings.push("missing amw_match_line (recommended for grep-first retrieval)");
+    } else {
+      const line = String(payload.amw_match_line);
+      if (line.includes("\n") || line.includes("\r")) {
+        errors.push("amw_match_line must be one physical line");
+      }
+      if (!line.includes("amw")) {
+        warnings.push("amw_match_line should include anchor token 'amw'");
+      }
+    }
+    if (payload.branches && typeof payload.branches === "object") {
+      const branchCount = Object.keys(payload.branches).length;
+      if (branchCount > 2) {
+        errors.push(`branch count ${branchCount} exceeds max-2 policy`);
+      }
+    }
+  }
+
+  stepList.forEach((step, i) => {
+    const at = `step[${i}]`;
+    if (!step || typeof step !== "object" || Array.isArray(step)) {
+      errors.push(`${at} must be an object`);
+      return;
+    }
+    const action = String(step.action ?? "").trim();
+    if (!action) errors.push(`${at} missing action`);
+
+    if (action === "eval_js") {
+      const script = String(step.value ?? step.params?.script ?? "").trim();
+      if (!script) errors.push(`${at} eval_js requires step.value or params.script`);
+    }
+
+    if (action === "copy_image_original") {
+      const selector = String(step.target ?? step.params?.selector ?? "").trim();
+      if (!selector) errors.push(`${at} copy_image_original requires selector (target or params.selector)`);
+    }
+
+    if (action === "assert_file") {
+      const inPath = String(step.target ?? step.value ?? step.params?.path ?? "").trim();
+      if (!inPath) errors.push(`${at} assert_file requires path in target/value/params.path`);
+    }
+
+    if (step.timeout_ms !== undefined) {
+      const timeout = Number(step.timeout_ms);
+      if (!Number.isFinite(timeout) || timeout < 0) {
+        warnings.push(`${at} timeout_ms should be a non-negative number`);
+      }
+    }
+  });
+
+  return { errors, warnings, step_count: stepList.length };
+}
+
+async function cmdValidate(opts) {
+  const stepsFile = String(opts["steps-file"] ?? opts["fallback-steps-file"] ?? "");
+  if (!stepsFile) {
+    throw new Error("validate requires --steps-file <path> (or --fallback-steps-file)");
+  }
+  const { parsed, hasBom, absolute } = parseJsonFile(stepsFile);
+  const report = validateStepsPayload(parsed);
+  if (hasBom) {
+    report.warnings.push("UTF-8 BOM detected; consider saving as UTF-8 without BOM");
+  }
+
+  process.stdout.write(
+    `${JSON.stringify(
+      {
+        ok: report.errors.length === 0,
+        file: absolute,
+        step_count: report.step_count,
+        errors: report.errors,
+        warnings: report.warnings
+      },
+      null,
+      2
+    )}\n`
+  );
+  return report.errors.length === 0 ? 0 : 2;
 }
 
 async function cmdList(opts, config) {
@@ -260,6 +370,7 @@ async function cmdRun(opts, config) {
       profile,
       profile_dir: profileDir,
       headed: resolveBoolOption(opts.headed, config.headed),
+      disable_replay: resolveBoolOption(opts["disable-replay"], config.disable_replay),
       hold_open_ms: resolveNumberOption(opts["hold-open-ms"], config.hold_open_ms, 0),
       vars: parseRuntimeVars(opts)
     };
@@ -295,6 +406,7 @@ async function main() {
   if (command === "list") process.exitCode = await cmdList(opts, config);
   else if (command === "search") process.exitCode = await cmdSearch(opts, config);
   else if (command === "record") process.exitCode = await cmdRecord(opts, config);
+  else if (command === "validate") process.exitCode = await cmdValidate(opts);
   else if (command === "run") process.exitCode = await cmdRun(opts, config);
   else {
     process.stderr.write(`Unknown command: ${command}\n`);

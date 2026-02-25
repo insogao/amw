@@ -28,6 +28,8 @@ Build a reusable execution loop:
 - `RunLogger`: writes JSONL events and run summary.
 - `Orchestrator`: replay-first, fallback-explore-second.
 
+`memory.db` is actively used for trajectory storage + replay stats (`usage_count`, `success_rate`, `avg_latency_ms`).
+
 ## Framework Contract
 
 This project is intentionally **configuration-driven**:
@@ -36,6 +38,22 @@ This project is intentionally **configuration-driven**:
 - Do not change core engine code for each new task.
 - AI should focus on intent matching and fixing failed trajectories.
 - Successful paths are persisted as reusable JSON memory.
+
+## Trajectory Directories
+
+Use these directories with clear roles:
+
+- `examples/`: curated official examples/templates.
+- `trajectories/ready/`: user-verified reusable trajectories (primary search target).
+- `trajectories/tmp/`: temporary AI-generated or test trajectories.
+- `trajectories/archive/`: historical versions kept for rollback.
+
+Recommended flow:
+
+1. Create new trajectory in `trajectories/tmp/`.
+2. Validate and run with `--disable-replay true`.
+3. Promote successful trajectory to `trajectories/ready/`.
+4. Move replaced old version to `trajectories/archive/`.
 
 ## JSON Actions
 
@@ -109,7 +127,7 @@ Rules:
 PowerShell search (AND by chained `rg` filters):
 
 ```powershell
-rg -n --glob "*.json" "\"amw_match_line\"\\s*:\\s*\".*\"" examples data `
+rg -n --glob "*.json" "\"amw_match_line\"\\s*:\\s*\".*\"" trajectories/ready `
 | rg -i "amw" `
 | rg -i "site:hotmail\\.com" `
 | rg -i "task:send_email" `
@@ -160,6 +178,18 @@ npm run amw -- run ^
   --session amw-demo
 ```
 
+5. Validate steps JSON before execution:
+
+```bash
+npm run amw -- validate --steps-file ./examples/baidu_liuyifei_download_2photos.json
+```
+
+6. Force fallback exploration (skip replay) when debugging:
+
+```bash
+npm run amw -- run ... --disable-replay true
+```
+
 ## Human Handoff
 
 Add a `human_handoff` step in your steps file:
@@ -183,6 +213,8 @@ Execution pauses and waits for user confirmation before continuing.
 
 ## Headed / Headless
 
+Without any config, AMW defaults to `headed=true` (visible browser).
+
 Set default behavior in `amw.config.json`:
 
 ```json
@@ -199,6 +231,7 @@ You can still override via CLI:
 ```bash
 npm run amw -- run ... --headed false
 npm run amw -- run ... --headed true --hold-open-ms 30000
+npm run amw -- run ... --disable-replay true
 npm run amw -- run ... --profile main
 ```
 
@@ -216,3 +249,8 @@ npm test
 
 No API key is required for deterministic replay/explore runs.
 An API key is only needed if you later add LLM planning or embeddings.
+
+## Notes on SQLite Warning
+
+AMW currently uses Node's built-in `node:sqlite` API for `memory.db`.
+`npm run amw` and `npm test` now use `--no-warnings`, so ExperimentalWarning is hidden by default.

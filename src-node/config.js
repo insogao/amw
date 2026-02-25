@@ -3,8 +3,9 @@ import path from "node:path";
 import { parseBool } from "./utils.js";
 
 const DEFAULT_CONFIG = {
-  headed: false,
+  headed: true,
   hold_open_ms: 0,
+  disable_replay: false,
   session: "amw",
   profile: "main",
   profile_dir: "./profiles",
@@ -25,6 +26,9 @@ export function loadConfig(cwd = process.cwd()) {
       : undefined,
     hold_open_ms: process.env.AMW_HOLD_OPEN_MS !== undefined
       ? Number(process.env.AMW_HOLD_OPEN_MS)
+      : undefined,
+    disable_replay: process.env.AMW_DISABLE_REPLAY !== undefined
+      ? parseBool(process.env.AMW_DISABLE_REPLAY)
       : undefined,
     session: process.env.AMW_SESSION,
     profile: process.env.AMW_PROFILE,

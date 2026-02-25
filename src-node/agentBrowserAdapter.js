@@ -135,12 +135,33 @@ export class AgentBrowserAdapter {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
     page.setDefaultTimeout(timeoutMs);
+    const source = String(script ?? "").trim();
+    if (!source) {
+      throw new Error("evaluate requires non-empty script");
+    }
     return page.evaluate(
       ({ fnSource, fnArg }) => {
-        const fn = new Function("arg", fnSource);
-        return fn(fnArg);
+        const src = String(fnSource || "").trim();
+        if (!src) return null;
+
+        // Support both styles:
+        // 1) function body script: "return {...};"
+        // 2) function expression: "() => ({...})" / "function(arg){...}"
+        if (src.startsWith("(") || src.startsWith("function") || src.includes("=>")) {
+          try {
+            const maybeFn = (0, eval)(src);
+            if (typeof maybeFn === "function") {
+              return maybeFn(fnArg);
+            }
+          } catch {
+            // fall back to function-body mode
+          }
+        }
+
+        const bodyFn = new Function("arg", src);
+        return bodyFn(fnArg);
       },
-      { fnSource: script, fnArg: arg }
+      { fnSource: source, fnArg: arg }
     );
   }
 
@@ -270,20 +291,37 @@ export class AgentBrowserAdapter {
     const absoluteUrl = new URL(rawSrc, page.url()).toString();
     const finalPath = outputPath ? path.resolve(outputPath) : defaultPathByUrl(absoluteUrl);
     fs.mkdirSync(path.dirname(finalPath), { recursive: true });
-    const response = await page.request.get(absoluteUrl, { timeout: timeoutMs });
+    const referer = String(page.url() || "");
+    const headers = {
+      referer,
+      accept: "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8"
+    };
+    try {
+      const origin = new URL(referer).origin;
+      if (origin) headers.origin = origin;
+    } catch {
+      // ignore invalid referer URL
+    }
+    const requestHeaders = Object.fromEntries(
+      Object.entries(headers).filter(([, value]) => value !== undefined && value !== null && value !== "")
+    );
+    const response = await page.request.get(absoluteUrl, {
+      timeout: timeoutMs,
+      headers: requestHeaders
+    });
     if (!response.ok()) {
       throw new Error(`Failed to download image: ${absoluteUrl}, status=${response.status()}`);
     }
     const body = await response.body();
     fs.writeFileSync(finalPath, body);
-    const headers = response.headers();
+    const responseHeaders = response.headers();
     return {
       path: finalPath,
       source: "url",
       selector,
       url: absoluteUrl,
       status: response.status(),
-      mime_type: headers["content-type"] || null
+      mime_type: responseHeaders["content-type"] || null
     };
   }
 

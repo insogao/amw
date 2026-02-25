@@ -4,3 +4,7 @@ artifacts/
 profiles/
 __pycache__/
 *.pyc
+examples/_generated/*
+!examples/_generated/.gitkeep
+trajectories/tmp/*
+!trajectories/tmp/.gitkeep
