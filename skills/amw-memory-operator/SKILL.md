@@ -18,8 +18,8 @@ Use this skill when the user wants to run, debug, or evolve browser automation i
 
 Directory policy (do not mix):
 
-1. `examples/`
-Only curated official examples/templates. Treat as mostly read-only.
+1. `examples/` (optional local)
+Local-only scratch examples; not distributed from Git by default.
 2. `trajectories/ready/`
 User-verified reusable trajectories. This is the primary grep/search target.
 3. `trajectories/tmp/`
@@ -36,7 +36,7 @@ Lifecycle policy:
 
 Hard constraints:
 
-1. Do not create new user-generated JSON directly under `examples/` unless user explicitly requests it.
+1. Do not create new user-generated JSON directly under `examples/` for distribution.
 2. Do not commit temporary trajectories from `trajectories/tmp/`.
 3. If a JSON is created in the wrong place, move it and explain the move.
 4. Keep Baidu download experiments local-only in `trajectories/tmp/` (do not distribute under `examples/`).
@@ -60,7 +60,6 @@ Do not introduce multi-level branch trees unless the user explicitly asks.
 - Replay/debug checklist: `references/replay-debug-checklist.md`
 - JSON demos: `assets/json-demos/*.json`
 - Skill UI metadata: `agents/openai.yaml`
-- Curated examples: `examples/*.json`
 - Reusable trajectories: `trajectories/ready/**/*.json`
 - Temporary trajectories: `trajectories/tmp/*.json`
 
@@ -119,7 +118,6 @@ Current mode is local-first. For distribution later:
 
 - CLI: `src-node/cli.js`
 - Adapter/actions: `src-node/agentBrowserAdapter.js`, `src-node/actionRegistry.js`
-- Curated examples: `examples/*.json`
 - Reusable trajectories: `trajectories/ready/`
 - Temporary trajectories: `trajectories/tmp/`
 - Archived trajectories: `trajectories/archive/`
@@ -156,7 +154,7 @@ Prefer `copy_image_original` whenever the user asks to "save original image" rat
 3. If replay misses/fails, run fallback steps
 4. On success, persist trajectory
 5. Compare `summary.json` `mode` and latency (`replay` vs `explore`)
-6. For grep-first manual selection, search `trajectories/ready/` first, not `examples/`
+6. For grep-first manual selection, search `trajectories/ready/` first.
 
 ## JSON Editing Policy
 

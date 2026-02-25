@@ -4,7 +4,5 @@ artifacts/
 profiles/
 __pycache__/
 *.pyc
-examples/_generated/
+examples/
 trajectories/
-# Local-only Baidu experiments (not for distribution)
-examples/baidu*.json

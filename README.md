@@ -43,7 +43,7 @@ This project is intentionally **configuration-driven**:
 
 Use these directories with clear roles:
 
-- `examples/`: curated official examples/templates.
+- `examples/`: optional local scratch examples (not distributed by default).
 - `trajectories/ready/`: user-verified reusable trajectories (primary search target).
 - `trajectories/tmp/`: temporary AI-generated or test trajectories.
 - `trajectories/archive/`: historical versions kept for rollback.
@@ -101,7 +101,7 @@ npm run amw -- run ^
   --site google.com ^
   --task-type web_search ^
   --intent "search on google" ^
-  --fallback-steps-file ./examples/google_search_parametric.json ^
+  --fallback-steps-file ./trajectories/tmp/google_search_parametric.json ^
   --query "刘亦菲 照片"
 ```
 
@@ -138,11 +138,8 @@ This returns only lines/files matching all required filters.
 
 ## Example Use Cases
 
-- Bilibili login QR capture (for human scan handoff):  
-  `examples/bilibili_qr_login_capture.json`
-- 36Kr hot Top3 + full article export to markdown:  
-  `examples/36kr_hot_top3_full_articles_to_md.json`
-  (uses 36Kr homepage feed, since old `/hot-list/catalog/0` no longer returns list data)
+- Keep runnable user trajectories under `trajectories/ready/` (reusable) and `trajectories/tmp/` (in-progress).
+- Keep `examples/` only as optional local scratch, not as distribution contract.
 
 ## Quick Start
 
@@ -161,7 +158,7 @@ npm run amw -- record ^
   --site google.com ^
   --task-type web_search ^
   --intent "search openai news" ^
-  --steps-file ./examples/google_search_steps.json ^
+  --steps-file ./trajectories/tmp/google_search_steps.json ^
   --store-dir ./data ^
   --session amw-demo
 ```
@@ -173,7 +170,7 @@ npm run amw -- run ^
   --site google.com ^
   --task-type web_search ^
   --intent "search openai news" ^
-  --fallback-steps-file ./examples/google_search_steps.json ^
+  --fallback-steps-file ./trajectories/tmp/google_search_steps.json ^
   --store-dir ./data ^
   --session amw-demo
 ```
@@ -181,7 +178,7 @@ npm run amw -- run ^
 5. Validate steps JSON before execution:
 
 ```bash
-npm run amw -- validate --steps-file ./examples/baidu_liuyifei_download_2photos.json
+npm run amw -- validate --steps-file ./trajectories/tmp/baidu_liuyifei_download_2photos.json
 ```
 
 6. Force fallback exploration (skip replay) when debugging:
