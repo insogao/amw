@@ -39,6 +39,7 @@ Hard constraints:
 1. Do not create new user-generated JSON directly under `examples/` unless user explicitly requests it.
 2. Do not commit temporary trajectories from `trajectories/tmp/`.
 3. If a JSON is created in the wrong place, move it and explain the move.
+4. Keep Baidu download experiments local-only in `trajectories/tmp/` (do not distribute under `examples/`).
 
 ACK protocol before generating/modifying trajectory files:
 
@@ -67,6 +68,18 @@ Always copy the nearest demo JSON from `assets/json-demos/` and minimally adapt 
 
 ## Install / Run
 
+### Runtime Bootstrap (Required Before First Use)
+
+If `agent-memory-workbench` is missing in current workspace, bootstrap runtime first.
+
+PowerShell:
+
+`if (!(Test-Path ./agent-memory-workbench/package.json)) { git clone https://github.com/insogao/amw.git agent-memory-workbench }`
+
+Install dependencies:
+
+`npm --prefix ./agent-memory-workbench install`
+
 ### Local
 
 1. `cd <your-workspace>/agent-memory-workbench`
@@ -74,7 +87,7 @@ Always copy the nearest demo JSON from `assets/json-demos/` and minimally adapt 
 3. Use:
    - `npm run amw -- list --store-dir ./data`
    - `npm run amw -- run ...`
-   - `npm run amw -- validate --steps-file ./examples/<file>.json`
+   - `npm run amw -- validate --steps-file ./trajectories/tmp/<file>.json`
 
 If running outside project root:
 

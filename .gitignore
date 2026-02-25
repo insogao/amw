@@ -4,7 +4,7 @@ artifacts/
 profiles/
 __pycache__/
 *.pyc
-examples/_generated/*
-!examples/_generated/.gitkeep
-trajectories/tmp/*
-!trajectories/tmp/.gitkeep
+examples/_generated/
+trajectories/
+# Local-only Baidu experiments (not for distribution)
+examples/baidu*.json
