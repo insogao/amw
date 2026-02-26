@@ -5,7 +5,7 @@ description: Operate and evolve agent-memory-workbench with replay-first browser
 
 # AMW Memory Operator
 
-Skill Version: `v0.1.3`
+Skill Version: `v0.1.4`
 
 ## Mission
 
@@ -24,6 +24,20 @@ Run browser tasks with this priority:
 4. Probe evidence bundle is required: generate both `snapshot.json` and `screenshot.png`, then read snapshot first.
 5. New/temporary JSON must stay in `trajectories/tmp/`.
 6. Selector priority: use snapshot refs/semantic locators first, CSS fallback last.
+7. Tool-first policy: always prefer AMW built-in actions before any external workaround.
+
+## Tooling Gate (Required)
+
+Before creating or patching trajectory JSON, do this in order:
+
+1. Confirm available AMW actions from `src-node/actionRegistry.js`.
+2. If AMW has a native action for the task (`snapshot`, `eval_js`, `copy_image`, `copy_image_original`, `write_markdown`, etc.), use it directly.
+3. Do not switch to unrelated skills/workflows (for example `celebrity-image-downloader`) while this skill is active.
+4. Do not generate Python/Node helper scripts as fallback unless:
+   - user explicitly requests external scripting, or
+   - AMW has no native action to complete the step.
+5. If native action is missing, state which action is missing first, then request user approval before external fallback.
+6. Never write runtime probe files under `.agents/skills/**`; write only under `trajectories/tmp/`.
 
 Probe evidence naming/location:
 
@@ -91,6 +105,8 @@ Install:
 2. Treating replay success as proof of new fallback JSON.
 3. Screenshot-only debugging without snapshot/eval_js prelude.
 4. Writing user-generated JSON directly into `examples/`.
+5. Jumping to Python downloads when `copy_image`/`copy_image_original` can do the job.
+6. Cross-calling another skill path while `amw-memory-operator` is already selected.
 
 ## Clarification
 
