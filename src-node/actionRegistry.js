@@ -221,9 +221,10 @@ export function createDefaultActionRegistry() {
       return adapter.waitMs(waitValue);
     }],
     ["snapshot", async ({ adapter, step }) => {
-      const interactive = ["1", "true", "i", "interactive"].includes(
-        String(step.target ?? step.params?.interactive ?? "").toLowerCase()
-      );
+      const interactiveToken = String(
+        step.params?.interactive ?? step.value ?? step.target ?? ""
+      ).toLowerCase();
+      const interactive = ["1", "true", "i", "interactive"].includes(interactiveToken);
       return adapter.snapshot(interactive);
     }],
     ["screenshot", async ({ adapter, step, runtime }) => {
