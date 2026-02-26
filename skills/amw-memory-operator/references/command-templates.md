@@ -37,6 +37,24 @@ Probe 产物统一写入：
 
 提示：`snapshot` 只要设置了 `path`，默认会自动产出上述两份文件，无需再单独加 `screenshot` 步骤。
 
+## URL 下载（原生动作）
+
+当 `eval_js` 已提取到图片 URL 时，使用 `download_url`，不要切外部 Python/Node 脚本。
+
+示例步骤：
+
+```json
+{
+  "id": "download_first_image",
+  "action": "download_url",
+  "value": "{{vars.image_urls.0}}",
+  "params": {
+    "path": "./artifacts/image_01.jpg",
+    "save_as": "image_01_path"
+  }
+}
+```
+
 ## 校验
 
 `npm run amw -- validate --steps-file ./trajectories/tmp/<file>.json`

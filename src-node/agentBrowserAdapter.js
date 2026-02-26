@@ -436,6 +436,58 @@ export class AgentBrowserAdapter {
     };
   }
 
+  async downloadFromUrl({ url, path: outputPath = "", headers = {}, timeoutMs = 30000 } = {}) {
+    await this.#ensureLaunched();
+    const page = this.manager.getPage();
+    page.setDefaultTimeout(timeoutMs);
+
+    const rawUrl = String(url || "").trim();
+    if (!rawUrl) throw new Error("downloadFromUrl requires non-empty url");
+    const absoluteUrl = new URL(rawUrl, page.url()).toString();
+
+    const defaultPathByUrl = (value) => {
+      try {
+        const u = new URL(value);
+        const base = path.basename(u.pathname || "");
+        if (!base || !base.includes(".")) return path.resolve(`./artifacts/download_${Date.now()}.bin`);
+        return path.resolve(`./artifacts/${base}`);
+      } catch {
+        return path.resolve(`./artifacts/download_${Date.now()}.bin`);
+      }
+    };
+
+    const finalPath = outputPath ? path.resolve(outputPath) : defaultPathByUrl(absoluteUrl);
+    fs.mkdirSync(path.dirname(finalPath), { recursive: true });
+
+    const referer = String(page.url() || "");
+    const mergedHeaders = {
+      referer,
+      accept: "*/*",
+      ...headers
+    };
+    const requestHeaders = Object.fromEntries(
+      Object.entries(mergedHeaders).filter(([, value]) => value !== undefined && value !== null && value !== "")
+    );
+
+    const response = await page.request.get(absoluteUrl, {
+      timeout: timeoutMs,
+      headers: requestHeaders
+    });
+    if (!response.ok()) {
+      throw new Error(`Failed to download url: ${absoluteUrl}, status=${response.status()}`);
+    }
+
+    const body = await response.body();
+    fs.writeFileSync(finalPath, body);
+    const responseHeaders = response.headers();
+    return {
+      path: finalPath,
+      url: absoluteUrl,
+      status: response.status(),
+      mime_type: responseHeaders["content-type"] || null
+    };
+  }
+
   async screenshot({
     path: outputPath = "",
     selector = "",

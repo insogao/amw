@@ -100,6 +100,14 @@ function deriveScreenshotPath(snapshotPath) {
   return `${raw}_screenshot.png`;
 }
 
+function normalizeSnapshotPath(outputPath) {
+  const raw = String(outputPath || "").trim();
+  if (!raw) return "";
+  const ext = path.extname(raw).toLowerCase();
+  if (!ext) return `${raw}.json`;
+  return raw;
+}
+
 export function createDefaultActionRegistry() {
   return new Map([
     ["open", async ({ adapter, step }) => adapter.open(step.target || step.value, step.timeout_ms)],
@@ -192,6 +200,9 @@ export function createDefaultActionRegistry() {
     }],
     ["download_image", async ({ adapter, runtime, step }) => {
       const selector = String(step.params?.selector || step.target || "").trim();
+      if (/^https?:\/\//i.test(selector)) {
+        throw new Error("download_image expects a page selector, not a URL. Use download_url for URL downloads.");
+      }
       if (!selector) throw new Error("download_image requires selector in target or params.selector");
       const outputPath = String(step.params?.path || step.value || "").trim();
       const result = await adapter.copyImageOriginal({
@@ -207,6 +218,21 @@ export function createDefaultActionRegistry() {
       if (saveAs) setRuntimeVar(runtime, saveAs, result.path);
       runtime.artifacts.generated_files.push(result.path);
       return { downloaded: true, type: "image_original", path: result.path, source: result.source };
+    }],
+    ["download_url", async ({ adapter, runtime, step }) => {
+      const url = String(step.value || step.target || step.params?.url || "").trim();
+      if (!url) throw new Error("download_url requires url in step.value/target/params.url");
+      const outputPath = String(step.params?.path || "").trim();
+      const result = await adapter.downloadFromUrl({
+        url,
+        path: outputPath || "",
+        headers: step.params?.headers && typeof step.params.headers === "object" ? step.params.headers : {},
+        timeoutMs: step.timeout_ms
+      });
+      const saveAs = String(step.params?.save_as || "").trim();
+      if (saveAs) setRuntimeVar(runtime, saveAs, result.path);
+      runtime.artifacts.generated_files.push(result.path);
+      return { downloaded: true, type: "url", path: result.path, url: result.url, status: result.status };
     }],
     ["paste_image", async ({ adapter, runtime, step }) => {
       const selector = String(step.target || step.params?.selector || "").trim();
@@ -238,7 +264,7 @@ export function createDefaultActionRegistry() {
       ).toLowerCase();
       const interactive = ["1", "true", "i", "interactive"].includes(interactiveToken);
       const result = await adapter.snapshot(interactive);
-      const outputPath = String(step.params?.path || "").trim();
+      const outputPath = normalizeSnapshotPath(step.params?.path);
       const defaultBundle = Boolean(outputPath);
       const bundleWithScreenshot = step.params?.bundle_with_screenshot === undefined
         ? defaultBundle

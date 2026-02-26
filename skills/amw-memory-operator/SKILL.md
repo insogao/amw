@@ -21,7 +21,7 @@ Skill Version: `v0.1.9`
 1. 只允许两个分支，且固定为：`normal` + `challenge-handling`。
 2. 默认走 autonomous probe，不默认走 manual observe。
 3. 手动 `observe` 必须先获得用户明确同意。
-4. Probe 证据包必备：优先使用一个 `snapshot` 步骤同步生成 `snapshot.json` 与 `screenshot.png`，阅读顺序先 snapshot。
+4. Probe 证据包必备：优先使用一个 `snapshot` 步骤同步生成 `snapshot.json` 与 `screenshot.png`，阅读顺序先 snapshot.json。
 5. 新建/临时 JSON 必须放在 `trajectories/tmp/`。
 6. 选择器优先级：snapshot refs / 语义定位优先，CSS 最后兜底。
 7. 工具优先策略：优先使用 AMW 内建 actions，再考虑外部方案。
@@ -38,7 +38,7 @@ Skill Version: `v0.1.9`
 在创建或修补 trajectory JSON 前，必须按顺序执行：
 
 1. 先在 `src-node/actionRegistry.js` 确认可用 AMW actions。
-2. 任务若可由 AMW 原生 action 完成（`snapshot`、`eval_js`、`capture_image`、`download_image`、`write_markdown` 等），必须直接使用。
+2. 任务若可由 AMW 原生 action 完成（`snapshot`、`eval_js`、`capture_image`、`download_image`、`download_url`、`write_markdown` 等），必须直接使用。
 3. 本 skill 激活时，不要切换到无关 skill/workflow。
 4. 禁止直接用 Python/Node 辅助脚本兜底，除非：
    - 用户明确要求外部脚本；或
@@ -160,7 +160,8 @@ Feature: AMW 运行决策
 1. `copy_text` / `paste_text`：文本复制与粘贴（运行时剪贴板变量）。
 2. `capture_image`：截图式图片抓取（元素或 clip）。
 3. `download_image`：下载原图到文件（下载任务首选）。
-4. `paste_image`：将文件写入 `<input type="file">`。
+4. `download_url`：按 URL 直接下载文件（用于 `eval_js` 提取出的图片 URL 列表）。
+5. `paste_image`：将文件写入 `<input type="file">`。
 
 产物与校验：
 

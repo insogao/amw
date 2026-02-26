@@ -186,6 +186,54 @@ function buildMatchLine({ site, taskType, intent, flow }) {
   return line.replace(/[\r\n]+/g, " ").trim();
 }
 
+function ensureJsonExampleTemplate({ storeDir, site, taskType, intent }) {
+  const absoluteStoreDir = path.resolve(String(storeDir || "./data"));
+  fs.mkdirSync(absoluteStoreDir, { recursive: true });
+  const exampleFile = path.join(absoluteStoreDir, "JSON.EXAMPLE.json");
+  if (fs.existsSync(exampleFile)) return exampleFile;
+
+  const normalizedSite = domainFromSiteOrUrl(site || "example.com");
+  const normalizedTaskType = String(taskType || "probe_task").trim() || "probe_task";
+  const normalizedIntent = String(intent || "fill this intent").trim() || "fill this intent";
+  const sample = {
+    amw_match_line: buildMatchLine({
+      site: normalizedSite,
+      taskType: normalizedTaskType,
+      intent: normalizedIntent,
+      flow: `${normalizedTaskType}_probe_v1`
+    }),
+    metadata: {
+      source: "amw-cli-template",
+      note: "Copy this file to trajectories/tmp/<task>.json and edit selectors/vars."
+    },
+    steps: [
+      {
+        id: "open_site",
+        action: "open",
+        target: `https://${normalizedSite}`
+      },
+      {
+        id: "probe_snapshot_capture",
+        action: "snapshot",
+        value: "interactive",
+        params: {
+          save_as: "probe_snapshot_data",
+          path: `./artifacts/probes/${normalizedSite}_${normalizedTaskType}_snapshot.json`
+        }
+      },
+      {
+        id: "probe_interactive_scan",
+        action: "eval_js",
+        value:
+          "return Array.from(document.querySelectorAll('input,textarea,button,a,[role=\"button\"]')).slice(0, 40).map((el) => ({ tag: el.tagName.toLowerCase(), text: (el.innerText || '').trim().slice(0, 40), placeholder: el.getAttribute('placeholder') || '', aria: el.getAttribute('aria-label') || '' }));",
+        params: { save_as: "interactive_elements" }
+      }
+    ]
+  };
+  fs.writeFileSync(exampleFile, `${JSON.stringify(sample, null, 2)}\n`, "utf-8");
+  return exampleFile;
+}
+
 function compileStepsFromTrace(rows, maxSteps = 80) {
   const steps = [];
   const pushStep = (step) => {
@@ -303,6 +351,12 @@ function validateStepsPayload(payload) {
     if (action === "download_image") {
       const selector = String(step.target ?? step.params?.selector ?? "").trim();
       if (!selector) errors.push(`${at} ${action} requires selector (target or params.selector)`);
+    }
+
+    if (action === "download_url") {
+      const url = String(step.value ?? step.target ?? step.params?.url ?? "").trim();
+      if (!url) errors.push(`${at} ${action} requires url in step.value/target/params.url`);
+      if (url && !/^https?:\/\//i.test(url)) warnings.push(`${at} ${action} url should start with http/https`);
     }
 
     if (action === "assert_file") {
@@ -601,23 +655,39 @@ async function cmdRun(opts, config) {
   const profileDir = resolveStringOption(opts["profile-dir"], config.profile_dir, "./profiles");
   const store = new MemoryStore(path.join(storeDir, "memory.db"));
   try {
+    const site = mustGet(opts, "site");
+    const taskType = mustGet(opts, "task-type");
+    const intent = mustGet(opts, "intent");
+    const exampleFile = ensureJsonExampleTemplate({
+      storeDir,
+      site,
+      taskType,
+      intent
+    });
     const orchestrator = new MemoryOrchestrator({
       store,
       dataDir: storeDir,
       binary: resolveStringOption(opts.binary, config.binary, "agent-browser")
     });
+    const disableReplay = resolveBoolOption(opts["disable-replay"], config.disable_replay);
+    if (disableReplay && !opts["fallback-steps-file"]) {
+      throw new Error(
+        "run with --disable-replay true requires --fallback-steps-file <path>. " +
+        `Template generated: ${exampleFile}`
+      );
+    }
     const fallbackSteps = opts["fallback-steps-file"]
       ? loadSteps(opts["fallback-steps-file"])
       : null;
     const request = {
-      site: mustGet(opts, "site"),
-      task_type: mustGet(opts, "task-type"),
-      intent: mustGet(opts, "intent"),
+      site,
+      task_type: taskType,
+      intent,
       session: resolveStringOption(opts.session, config.session, "amw"),
       profile,
       profile_dir: profileDir,
       headed: resolveBoolOption(opts.headed, config.headed),
-      disable_replay: resolveBoolOption(opts["disable-replay"], config.disable_replay),
+      disable_replay: disableReplay,
       hold_open_ms: resolveNumberOption(opts["hold-open-ms"], config.hold_open_ms, 0),
       vars: parseRuntimeVars(opts)
     };
