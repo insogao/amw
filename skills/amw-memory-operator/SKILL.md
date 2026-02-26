@@ -129,6 +129,43 @@ Feature: AMW 运行决策
 5. AMW 原生可完成时仍跳外部脚本（Python/Node/shell）。
 6. `amw-memory-operator` 已选中时又跨调用其他 skill 路径。
 
+## 可用 Actions 列表（速查）
+
+导航与交互：
+
+1. `open`：打开页面 URL。
+2. `click`：按 selector/ref 点击。
+3. `click_text`：按文本点击（支持 `exact/index`）。
+4. `fill`：清空并填入文本。
+5. `type`：按键入方式输入文本。
+6. `press`：键盘按键（如 `Enter`）。
+7. `wait`：等待毫秒或等待页面 load state。
+
+页面观测：
+
+1. `snapshot`：获取压缩骨架；interactive + `path` 场景可同步产出 screenshot（`bundle_with_screenshot=true`）。
+2. `screenshot`：截图（整页/selector/clip）。
+3. `eval_js`：执行页面脚本提取结构化信息。
+4. `get_url`：读取当前 URL。
+
+文本与图片：
+
+1. `copy_text` / `paste_text`：文本复制与粘贴（运行时剪贴板变量）。
+2. `copy_image`：截图式图片复制（元素或 clip）。
+3. `copy_image_original`：下载原图到文件（下载任务首选）。
+4. `paste_image`：将文件写入 `<input type="file">`。
+
+产物与校验：
+
+1. `write_markdown`：生成 Markdown 文件。
+2. `append_markdown_section`：追加 Markdown 小节。
+3. `assert_file`：断言文件存在与最小大小。
+4. `assert_markdown`：断言 Markdown 内容/链接约束。
+
+人工接管：
+
+1. `human_handoff`：需要人工处理时暂停并交接。
+
 ## 响应契约
 
 任务开始时，执行前先输出这一行 ACK：
