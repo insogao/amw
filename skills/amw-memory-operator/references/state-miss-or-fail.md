@@ -1,21 +1,21 @@
-# State: MISS_OR_FAIL
+# 状态：MISS_OR_FAIL
 
-Use this state when no confident hit exists or replay failed.
+当没有高置信命中，或 replay 失败时，使用此状态。
 
-## Default Path: Auto-Probe
+## 默认路径：Auto-Probe
 
-1. Run fallback/probe with `--disable-replay true`.
-2. Keep browser headed for fast selector diagnosis.
-3. Collect probe evidence bundle:
-   1. `snapshot` (interactive/compressed structure, saved to json)
-   2. `screenshot` (full-page visual fallback, saved to png)
-   3. `eval_js` (precise DOM fields/attributes)
-4. Patch only the failed segment in `trajectories/tmp/`.
-5. Re-run one probe immediately.
+1. 用 `--disable-replay true` 运行 fallback/probe。
+2. 浏览器保持有头模式，便于快速定位 selector 问题。
+3. 收集 probe 证据包：
+   1. `snapshot`（interactive/压缩结构，保存为 json）
+   2. `screenshot`（整页视觉兜底，保存为 png）
+   3. `eval_js`（精确 DOM 字段/属性）
+4. 仅修补 `trajectories/tmp/` 中失败片段。
+5. 立即重跑一次 probe。
 
-## Required Probe Prelude (Do First)
+## 必需 Probe 前置（先做）
 
-Before changing selectors, add these prelude steps at the top of probe JSON:
+在改 selector 前，先把以下前置步骤放到 probe JSON 顶部：
 
 ```json
 {
@@ -43,24 +43,24 @@ Before changing selectors, add these prelude steps at the top of probe JSON:
 }
 ```
 
-Read order:
+阅读顺序：
 
-1. Read `*_snapshot.json` first.
-2. If unclear, read `*_screenshot.png`.
+1. 先读 `*_snapshot.json`。
+2. 仍不清晰再读 `*_screenshot.png`。
 
-If prelude steps are missing, do not patch selectors yet.
+若缺少前置步骤，先不要改 selector。
 
-## JSON Editing Rules
+## JSON 编辑规则
 
-1. Keep steps minimal and stable.
-2. Externalize variable input using `{{vars.xxx}}`.
-3. Keep `assert_*` checks at tail.
-4. Keep branch count <= 2.
-5. Keep runtime JSON under `trajectories/tmp/` only; never under `.agents/skills/**`.
-6. Do not create external scripts if AMW native actions can complete the step.
+1. steps 保持最小且稳定。
+2. 可变输入外置为 `{{vars.xxx}}`。
+3. `assert_*` 校验放在尾部。
+4. 分支数保持 <= 2。
+5. 运行时 JSON 只放 `trajectories/tmp/`；禁止放 `.agents/skills/**`。
+6. AMW 原生 action 可完成时，不创建外部脚本。
 
-## Success Gate
+## 成功门槛
 
-1. `summary.mode` must be `explore`.
-2. Acceptance checks must pass.
-3. Artifacts must match expected path/content constraints.
+1. `summary.mode` 必须是 `explore`。
+2. 验收检查必须通过。
+3. artifacts 必须符合预期路径与内容约束。

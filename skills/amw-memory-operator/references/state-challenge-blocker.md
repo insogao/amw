@@ -1,25 +1,25 @@
-# State: CHALLENGE_BLOCKER
+# 状态：CHALLENGE_BLOCKER
 
-Use this state when blocked by popup, captcha, QR, or risk interstitial.
+当被弹窗、验证码、扫码或风险页阻断时，使用此状态。
 
-## Entry Rule
+## 进入规则
 
-Do not silently switch to manual mode.
+不要静默切到手动模式。
 
-1. Explain blocker type and impact briefly.
-2. Ask user approval before entering manual mode.
-3. Continue manual flow only after explicit "yes".
+1. 先简要说明阻断类型和影响。
+2. 进入手动模式前先征得用户同意。
+3. 只有用户明确回复“yes/同意”后才继续手动流程。
 
-## Flow
+## 流程
 
-1. Keep normal branch unchanged.
-2. Add/maintain one challenge-handling branch only.
-3. Save required evidence/artifact:
-   1. prefer `copy_image_original`
-   2. fallback to selector/clip screenshot
-4. If blocker cannot be solved automatically, call `human_handoff` or fail fast with clear reason.
-5. Resume normal branch after blocker is resolved.
+1. 正常分支保持不变。
+2. 只新增/维护一个 challenge-handling 分支。
+3. 保存必要证据/产物：
+   1. 优先 `copy_image_original`
+   2. 其次 selector/clip 截图
+4. 若无法自动解决阻断，调用 `human_handoff` 或快速失败并给出清晰原因。
+5. 阻断解除后回到正常分支继续执行。
 
-## Output Rule
+## 输出规则
 
-If QR is needed, output direct QR image file when possible (not full-page screenshot).
+若需要二维码，尽量输出二维码本体图像文件（而非整页截图）。

@@ -1,24 +1,24 @@
-# Replay Debug Checklist
+# Replay 调试检查单
 
-When a run fails, follow this order:
+当运行失败时，按以下顺序排查：
 
-1. Open `summary.json`.
-2. Locate `failed_step_id`, `reason`, `mode`.
-3. Open `events.jsonl`.
-4. Find `step_error` for the same step.
-5. Verify artifact output in `artifacts/`.
+1. 打开 `summary.json`。
+2. 定位 `failed_step_id`、`reason`、`mode`。
+3. 打开 `events.jsonl`。
+4. 找到同一步骤对应的 `step_error`。
+5. 校验 `artifacts/` 里的输出产物。
 
-## Typical Fixes
+## 常见修复
 
-- Selector timeout: broaden selector fallback or add wait.
-- URL mismatch: add guard or correct navigation step.
-- Missing data extraction: adjust `eval_js` selector/logic.
-- Verification blocker: route to `human_handoff` and save evidence (prefer `copy_image_original`).
+- Selector 超时：放宽选择器兜底或补 `wait`。
+- URL 不匹配：增加 guard 或修正导航步骤。
+- 数据抽取缺失：调整 `eval_js` 的 selector/逻辑。
+- 验证阻断：转 `human_handoff` 并保存证据（优先 `copy_image_original`）。
 
-## Minimal-Patch Principle
+## 最小修补原则
 
-- Patch only failed segment.
-- Keep JSON variable-driven; avoid hardcoded user input.
-- Keep solution AMW-native first; avoid external scripts unless approved or native action is missing.
-- Re-run once in headed mode with hold:
+- 只修补失败片段。
+- JSON 保持变量驱动，避免硬编码用户输入。
+- 优先 AMW 原生方案；除非已批准或原生能力缺失，不走外部脚本。
+- 有头模式重跑一次并保留窗口：
   - `--headed true --hold-open-ms 30000`

@@ -1,120 +1,141 @@
 ---
 name: amw-memory-operator
-description: Operate and evolve agent-memory-workbench with replay-first browser memory. Use for trajectory retrieval, probe/debug, trace review, and minimal JSON patching under a strict two-branch policy (normal + challenge-handling).
+description: 使用 replay-first 浏览器记忆方式运行与演进 agent-memory-workbench；适用于轨迹检索、探测/调试、trace 复盘与最小化 JSON 修补（严格两分支：normal + challenge-handling）。
 ---
 
 # AMW Memory Operator
 
-Skill Version: `v0.1.5`
+Skill Version: `v0.1.9`
 
-## Mission
+## 目标
 
-Run browser tasks with this priority:
+浏览器任务按以下优先级执行：
 
-1. Reuse existing trajectory.
-2. If miss/fail, auto-probe with compressed evidence.
-3. Patch minimal JSON in `trajectories/tmp/`.
-4. Promote to `trajectories/ready/` only after repeated success.
+1. 优先复用已有 trajectory。
+2. 未命中/失败时，用压缩证据自动 probe。
+3. 仅在 `trajectories/tmp/` 做最小化 JSON 修补。
+4. 连续成功后再提升到 `trajectories/ready/`。
 
-## Hard Rules
+## 硬性规则
 
-1. Max two branches only: `normal` + `challenge-handling`.
-2. Default mode is autonomous probe, not manual observe.
-3. Manual `observe` requires explicit user approval first.
-4. Probe evidence bundle is required: generate both `snapshot.json` and `screenshot.png`, then read snapshot first.
-5. New/temporary JSON must stay in `trajectories/tmp/`.
-6. Selector priority: use snapshot refs/semantic locators first, CSS fallback last.
-7. Tool-first policy: always prefer AMW built-in actions before any external workaround.
+1. 最多两个分支：`normal` + `challenge-handling`。
+2. 默认走 autonomous probe，不默认走 manual observe。
+3. 手动 `observe` 必须先获得用户明确同意。
+4. Probe 证据包必备：同时生成 `snapshot.json` 与 `screenshot.png`，阅读顺序先 snapshot。
+5. 新建/临时 JSON 必须放在 `trajectories/tmp/`。
+6. 选择器优先级：snapshot refs / 语义定位优先，CSS 最后兜底。
+7. 工具优先策略：优先使用 AMW 内建 actions，再考虑外部方案。
 
-## Tooling Gate (Required)
+## 工具门禁（必走）
 
-Before creating or patching trajectory JSON, do this in order:
+在创建或修补 trajectory JSON 前，必须按顺序执行：
 
-1. Confirm available AMW actions from `src-node/actionRegistry.js`.
-2. If AMW has a native action for the task (`snapshot`, `eval_js`, `copy_image`, `copy_image_original`, `write_markdown`, etc.), use it directly.
-3. Do not switch to unrelated skills/workflows while this skill is active.
-4. Do not generate Python/Node helper scripts as fallback unless:
-   - user explicitly requests external scripting, or
-   - AMW has no native action to complete the step.
-5. If native action is missing, state which action is missing first, then request user approval before external fallback.
-6. Never write runtime probe files under `.agents/skills/**`; write only under `trajectories/tmp/`.
+1. 先在 `src-node/actionRegistry.js` 确认可用 AMW actions。
+2. 任务若可由 AMW 原生 action 完成（`snapshot`、`eval_js`、`copy_image`、`copy_image_original`、`write_markdown` 等），必须直接使用。
+3. 本 skill 激活时，不要切换到无关 skill/workflow。
+4. 禁止直接用 Python/Node 辅助脚本兜底，除非：
+   - 用户明确要求外部脚本；或
+   - AMW 原生 action 确实无法完成该步骤。
+5. 若缺少原生 action，先明确“缺的是哪一个 action”，再请求用户同意后再走外部兜底。
+6. 运行时 probe 文件禁止写入 `.agents/skills/**`，只能写入 `trajectories/tmp/`。
 
-Probe evidence naming/location:
+Probe 证据命名与位置：
 
-1. Directory: `./artifacts/probes/`
-2. Snapshot file: `{{context.site}}_{{context.task_type}}_snapshot.json`
-3. Screenshot file: `{{context.site}}_{{context.task_type}}_screenshot.png`
+1. 目录：`./artifacts/probes/`
+2. Snapshot 文件：`{{context.site}}_{{context.task_type}}_snapshot.json`
+3. Screenshot 文件：`{{context.site}}_{{context.task_type}}_screenshot.png`
 
-Selector contract:
+选择器约定：
 
-1. Prefer `target: "@eN"` from latest interactive snapshot refs.
-2. If no ref, prefer semantic locator string from snapshot (for example `getByRole(...)`).
-3. Use raw CSS selector only when ref/semantic locator is unavailable.
+1. 优先使用来自最新 interactive snapshot refs 的 `target: "@eN"`。
+2. 无 ref 时，优先使用 snapshot 给出的语义定位字符串（例如 `getByRole(...)`）。
+3. ref/语义定位都不可用时，才使用原始 CSS selector。
 
-## State Machine (Read by Current State)
+## 决策流程（Gherkin 主入口）
 
-1. State `REPLAY`: you have a confident trajectory hit.
-Read: `references/state-replay.md`
+```gherkin
+Feature: AMW 运行决策
+  作为执行代理
+  我需要先复用、再探测、再提升
+  以最小改动完成稳定可复用的浏览器任务
 
-2. State `MISS_OR_FAIL`: no hit or replay failed.
-Read: `references/state-miss-or-fail.md`
+  Scenario: 命中可复用 trajectory 且 replay 成功
+    Given trajectories/ready 中存在高置信命中
+    When 执行 replay-first run
+    Then mode 应为 replay
+    And 任务直接完成
 
-3. State `CHALLENGE_BLOCKER`: popup/captcha/QR/risk-interstitial block.
-Read: `references/state-challenge-blocker.md`
+  Scenario: 未命中或 replay 失败，进入 probe
+    Given 没有高置信命中或 replay 失败
+    When 执行 run 并设置 --disable-replay true
+    Then 生成 probe 证据包 snapshot + screenshot + eval_js
+    And 仅修补 trajectories/tmp 中失败片段
+    And 立即重跑一次 probe
 
-4. State `PROMOTION`: probe succeeded and ready for reuse.
-Read: `references/state-promotion.md`
+  Scenario: 遇到 challenge 阻断
+    Given 出现 captcha/qr/risk/consent 等阻断
+    When 进入 challenge-handling 分支
+    Then 正常分支保持不变
+    And 保存阻断证据（优先 copy_image_original）
+    And 无法自动通过时请求 human_handoff 或快速失败并说明原因
 
-## Resource Map
+  Scenario: probe 成功后提升
+    Given probe 成功且验收通过
+    When 再重跑一次确认稳定性
+    Then 将 trajectories/tmp 提升到 trajectories/ready
+    And 旧版本移动到 trajectories/archive
+```
 
-- Two-branch contract: `references/json-two-branch-contract.md`
-- Replay/debug checklist: `references/replay-debug-checklist.md`
-- Command templates: `references/command-templates.md`
-- JSON demos: `assets/json-demos/*.json`
-  - For compressed-first probing, start from `assets/json-demos/compressed-probe-skeleton.json`
-- Reusable trajectories: `trajectories/ready/**/*.json`
-- Temporary trajectories: `trajectories/tmp/*.json`
+状态细节文件：
 
-## Runtime Bootstrap
+1. `references/state-replay.md`
+2. `references/state-miss-or-fail.md`
+3. `references/state-challenge-blocker.md`
+4. `references/state-promotion.md`
 
-If missing project:
+## 资源地图
+
+- 两分支约定：`references/json-two-branch-contract.md`
+- Replay/调试检查单：`references/replay-debug-checklist.md`
+- 命令模板：`references/command-templates.md`
+- JSON 示例：`assets/json-demos/*.json`
+  - 压缩优先 probe 从 `assets/json-demos/compressed-probe-skeleton.json` 起步
+- 可复用 trajectories：`trajectories/ready/**/*.json`
+- 临时 trajectories：`trajectories/tmp/*.json`
+
+## 运行前引导
+
+若项目不存在：
 
 `if (!(Test-Path ./agent-memory-workbench/package.json)) { git clone https://github.com/insogao/amw.git agent-memory-workbench }`
 
-Install:
+安装：
 
 `npm --prefix ./agent-memory-workbench install`
 
-## Execution Defaults
+## 执行默认值
 
-1. Browser defaults to headed (`headed=true`).
-2. Use profile `main` unless user requests another identity.
-3. For new JSON verification, always pass `--disable-replay true`.
+1. 浏览器默认有头模式（`headed=true`）。
+2. 除非用户指定其他身份，默认 profile 为 `main`。
+3. 新 JSON 验证时，必须带 `--disable-replay true`。
+4. 日志默认开启，无需额外参数：每次 `run` 都会产出 `events.jsonl` 和 `summary.json`。
 
-## Minimal Workflow
+## 反模式
 
-1. Search/select trajectory from `trajectories/ready/`.
-2. Run replay-first.
-3. On miss/fail, run probe in headed mode with `--disable-replay true`.
-4. Fix only failed segment in `trajectories/tmp/`.
-5. Validate, rerun, then promote.
+1. 未获用户同意就进入 `observe`。
+2. 把 replay 成功当作“新 fallback JSON 已验证”的证据。
+3. 未做 snapshot/eval_js 前置就只看截图调试。
+4. 把用户运行时 JSON 直接写进 `examples/`。
+5. AMW 原生可完成时仍跳外部脚本（Python/Node/shell）。
+6. `amw-memory-operator` 已选中时又跨调用其他 skill 路径。
 
-## Anti-Patterns
+## 响应契约
 
-1. Entering `observe` without user approval.
-2. Treating replay success as proof of new fallback JSON.
-3. Screenshot-only debugging without snapshot/eval_js prelude.
-4. Writing user-generated JSON directly into `examples/`.
-5. Jumping to external scripts (Python/Node/shell) when AMW native actions already cover the step.
-6. Cross-calling another skill path while `amw-memory-operator` is already selected.
-
-## Response Contract
-
-At task start, state this one-line ACK before execution:
+任务开始时，执行前先输出这一行 ACK：
 
 `AMW ACK: I will use AMW-native actions first, keep runtime JSON in trajectories/tmp, and use external scripts only with explicit approval or missing native action.`
 
-## Clarification
+## 术语澄清
 
-`challenge-handling` means runtime blockers (consent dialog, risk prompt, captcha, QR gate).
-It does not mean "human code review" or "manual QA".
+`challenge-handling` 指运行时阻断（同意弹窗、风险页、验证码、扫码门槛）。
+不指“人工代码评审”或“手工 QA”。

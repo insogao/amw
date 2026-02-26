@@ -1,36 +1,36 @@
-# JSON Two-Branch Contract
+# JSON 双分支约定
 
-Keep trajectories simple and non-bloated.
+保持 trajectory 简洁，避免臃肿。
 
-## Branch Limit
+## 分支上限
 
-Only two branches are allowed:
+只允许两个分支：
 
-1. `steps` (normal branch, required)
-2. `branches.challenge.steps` (challenge-handling branch, optional)
+1. `steps`（正常分支，必需）
+2. `branches.challenge.steps`（挑战处理分支，可选）
 
-## Meaning of Challenge Branch
+## Challenge 分支含义
 
-`challenge` means runtime blockers, for example:
+`challenge` 指运行时阻断，例如：
 
-- cookie/consent popups
-- risk interstitial pages
-- captcha/robot checks
-- QR/login gates
+- cookie/同意弹窗
+- 风险中间页
+- 验证码/真人校验
+- 扫码/登录门槛
 
-It does not mean manual QA.
+不表示手工 QA。
 
-## Reserved Fields
+## 预留字段
 
-Current runtime executes `steps` as primary path.  
-The following fields are reserved for AI planning and future branch execution:
+当前 runtime 只执行主路径 `steps`。  
+以下字段为 AI 规划与未来分支执行预留：
 
 - `branch_policy.max_branches`
 - `branch_policy.on_step_error`
 - `branch_policy.on_challenge_error`
 - `branches.challenge`
 
-## Suggested Schema
+## 建议结构
 
 ```json
 {
@@ -53,13 +53,13 @@ The following fields are reserved for AI planning and future branch execution:
 }
 ```
 
-## Compatibility
+## 兼容性
 
-Legacy key `branches.human_verify` may still exist in old JSON.
-When encountered, treat it as alias of `branches.challenge`.
+老 JSON 里可能仍存在 `branches.human_verify`。
+遇到时按 `branches.challenge` 别名处理。
 
-## Practical Rule
+## 实务规则
 
-- Keep `steps` runnable end-to-end.
-- Keep challenge branch minimal: capture evidence, handoff/recover, then continue.
-- If both normal and challenge branch fail, re-explore and patch only broken segment.
+- 保证 `steps` 可以端到端运行。
+- challenge 分支保持最小：留证据、交接/恢复，然后回主流程。
+- normal 与 challenge 都失败时，重新探索并只修补损坏片段。
