@@ -34,6 +34,7 @@ export class AgentBrowserAdapter {
     this.traceListeners = null;
     this.traceInstalled = false;
     this.traceBindingInstalled = false;
+    this.lastSnapshotRefs = {};
   }
 
   async #ensureLaunched() {
@@ -58,31 +59,121 @@ export class AgentBrowserAdapter {
     return { url: page.url() };
   }
 
+  #resolveSelectorFromRefs(rawSelector) {
+    const selector = String(rawSelector ?? "").trim();
+    if (!selector.startsWith("@")) return selector;
+    const refKey = selector.slice(1).trim();
+    if (!refKey) {
+      throw new AgentBrowserError("Empty ref selector '@'. Expected format like @e3.");
+    }
+    const refs = (this.lastSnapshotRefs && typeof this.lastSnapshotRefs === "object")
+      ? this.lastSnapshotRefs
+      : {};
+    const mapped =
+      refs[refKey] ??
+      refs[`@${refKey}`] ??
+      refs[selector];
+    if (!mapped) {
+      throw new AgentBrowserError(
+        `Ref selector '${selector}' not found in current snapshot refs. ` +
+        "Run snapshot(interactive=true) before using @eN selectors."
+      );
+    }
+    return String(mapped).trim();
+  }
+
+  #parseLocatorExpression(page, expression) {
+    const raw = String(expression ?? "").trim();
+    if (!raw) return null;
+
+    let base = raw;
+    let chain = { kind: "first", explicit: false, index: 0 };
+    if (/\.first\(\)\s*$/i.test(base)) {
+      chain = { kind: "first", explicit: true, index: 0 };
+      base = base.replace(/\.first\(\)\s*$/i, "").trim();
+    } else if (/\.last\(\)\s*$/i.test(base)) {
+      chain = { kind: "last", explicit: true, index: 0 };
+      base = base.replace(/\.last\(\)\s*$/i, "").trim();
+    } else {
+      const nthMatch = base.match(/\.nth\((\d+)\)\s*$/i);
+      if (nthMatch) {
+        chain = { kind: "nth", explicit: true, index: Number(nthMatch[1]) };
+        base = base.slice(0, nthMatch.index).trim();
+      }
+    }
+
+    const callMatch = base.match(/^([A-Za-z_$][\w$]*)\(([\s\S]*)\)$/);
+    if (!callMatch) return null;
+    const method = String(callMatch[1] || "").trim();
+    const supportedMethods = new Set([
+      "getByRole",
+      "getByText",
+      "getByLabel",
+      "getByPlaceholder",
+      "getByAltText",
+      "getByTitle",
+      "getByTestId"
+    ]);
+    if (!supportedMethods.has(method) || typeof page[method] !== "function") {
+      return null;
+    }
+
+    const argsSource = String(callMatch[2] || "").trim();
+    let args = [];
+    if (argsSource) {
+      try {
+        args = new Function(`return [${argsSource}];`)();
+      } catch {
+        return null;
+      }
+      if (!Array.isArray(args)) return null;
+    }
+
+    let locator = page[method](...args);
+    if (chain.kind === "nth" && Number.isFinite(chain.index)) {
+      locator = locator.nth(chain.index);
+    } else if (chain.kind === "last") {
+      locator = locator.last();
+    } else {
+      locator = locator.first();
+    }
+    return locator;
+  }
+
+  #resolveLocator(page, selector) {
+    const raw = String(selector ?? "").trim();
+    if (!raw) throw new AgentBrowserError("Selector is required");
+    const resolved = this.#resolveSelectorFromRefs(raw);
+    const semantic = this.#parseLocatorExpression(page, resolved);
+    if (semantic) return semantic;
+    return page.locator(resolved).first();
+  }
+
   async click(selector, timeoutMs = 30000) {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
-    await page.locator(selector).first().click({ timeout: timeoutMs });
+    await this.#resolveLocator(page, selector).click({ timeout: timeoutMs });
     return { ok: true };
   }
 
   async fill(selector, text, timeoutMs = 30000) {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
-    await page.locator(selector).first().fill(text, { timeout: timeoutMs });
+    await this.#resolveLocator(page, selector).fill(text, { timeout: timeoutMs });
     return { ok: true };
   }
 
   async focus(selector, timeoutMs = 30000) {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
-    await page.locator(selector).first().focus({ timeout: timeoutMs });
+    await this.#resolveLocator(page, selector).focus({ timeout: timeoutMs });
     return { ok: true };
   }
 
   async typeText(selector, text, timeoutMs = 30000) {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
-    await page.locator(selector).first().type(text, { timeout: timeoutMs });
+    await this.#resolveLocator(page, selector).type(text, { timeout: timeoutMs });
     return { ok: true };
   }
 
@@ -119,6 +210,7 @@ export class AgentBrowserAdapter {
   async snapshot(interactive = false) {
     await this.#ensureLaunched();
     const snap = await this.manager.getSnapshot({ interactive });
+    this.lastSnapshotRefs = (snap?.refs && typeof snap.refs === "object") ? snap.refs : {};
     return { snapshot: snap.tree, refs: snap.refs };
   }
 
@@ -172,14 +264,14 @@ export class AgentBrowserAdapter {
   async getText(selector, timeoutMs = 30000) {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
-    const text = await page.locator(selector).first().innerText({ timeout: timeoutMs });
+    const text = await this.#resolveLocator(page, selector).innerText({ timeout: timeoutMs });
     return String(text ?? "");
   }
 
   async getAttribute(selector, attr, timeoutMs = 30000) {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
-    const value = await page.locator(selector).first().getAttribute(attr, { timeout: timeoutMs });
+    const value = await this.#resolveLocator(page, selector).getAttribute(attr, { timeout: timeoutMs });
     return value == null ? "" : String(value);
   }
 
@@ -187,7 +279,7 @@ export class AgentBrowserAdapter {
     await this.#ensureLaunched();
     const page = this.manager.getPage();
     const normalized = (Array.isArray(files) ? files : [files]).map((p) => path.resolve(String(p)));
-    await page.locator(selector).first().setInputFiles(normalized, { timeout: timeoutMs });
+    await this.#resolveLocator(page, selector).setInputFiles(normalized, { timeout: timeoutMs });
     return { ok: true, files: normalized };
   }
 
@@ -196,8 +288,9 @@ export class AgentBrowserAdapter {
     if (!selector) throw new Error("copyImageOriginal requires selector");
     const page = this.manager.getPage();
     page.setDefaultTimeout(timeoutMs);
+    const locator = this.#resolveLocator(page, selector);
 
-    const info = await page.locator(selector).first().evaluate(
+    const info = await locator.evaluate(
       async (el, { inputAttr }) => {
         const pickFromImage = async (img, preferredAttr) => {
           if (!img) return { src: "", data_url: "", tag: "none" };
@@ -343,7 +436,7 @@ export class AgentBrowserAdapter {
     fs.mkdirSync(path.dirname(finalPath), { recursive: true });
 
     if (selector) {
-      await page.locator(selector).first().screenshot({ path: finalPath, timeout: timeoutMs });
+      await this.#resolveLocator(page, selector).screenshot({ path: finalPath, timeout: timeoutMs });
     } else if (clip) {
       await page.screenshot({
         path: finalPath,

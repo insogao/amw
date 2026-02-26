@@ -5,7 +5,7 @@ description: Operate and evolve agent-memory-workbench with replay-first browser
 
 # AMW Memory Operator
 
-Skill Version: `v0.1.2`
+Skill Version: `v0.1.3`
 
 ## Mission
 
@@ -23,12 +23,19 @@ Run browser tasks with this priority:
 3. Manual `observe` requires explicit user approval first.
 4. Probe evidence bundle is required: generate both `snapshot.json` and `screenshot.png`, then read snapshot first.
 5. New/temporary JSON must stay in `trajectories/tmp/`.
+6. Selector priority: use snapshot refs/semantic locators first, CSS fallback last.
 
 Probe evidence naming/location:
 
 1. Directory: `./artifacts/probes/`
 2. Snapshot file: `{{context.site}}_{{context.task_type}}_snapshot.json`
 3. Screenshot file: `{{context.site}}_{{context.task_type}}_screenshot.png`
+
+Selector contract:
+
+1. Prefer `target: "@eN"` from latest interactive snapshot refs.
+2. If no ref, prefer semantic locator string from snapshot (for example `getByRole(...)`).
+3. Use raw CSS selector only when ref/semantic locator is unavailable.
 
 ## State Machine (Read by Current State)
 

@@ -78,7 +78,7 @@ export class TrajectoryExecutor {
         });
 
         this.runtime.last_result = result;
-        const saveAs = String(effectiveStep.params?.save_as ?? "").trim();
+        const saveAs = String(effectiveStep.params?.save_as ?? effectiveStep.save_as ?? "").trim();
         if (saveAs) {
           this.runtime.vars[saveAs] = result;
         }

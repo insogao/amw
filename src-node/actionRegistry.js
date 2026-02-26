@@ -90,7 +90,7 @@ function resolveClip(params) {
 
 export function createDefaultActionRegistry() {
   return new Map([
-    ["open", async ({ adapter, step }) => adapter.open(step.target, step.timeout_ms)],
+    ["open", async ({ adapter, step }) => adapter.open(step.target || step.value, step.timeout_ms)],
     ["click", async ({ adapter, step }) => adapter.click(step.target, step.timeout_ms)],
     ["click_text", async ({ adapter, step }) => {
       const text = step.value || step.target || step.params?.text || "";

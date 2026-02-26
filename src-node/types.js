@@ -9,14 +9,20 @@ export function normalizeGuard(raw) {
 }
 
 export function normalizeStep(raw, index) {
+  const params = (raw?.params && typeof raw.params === "object" && !Array.isArray(raw.params))
+    ? { ...raw.params }
+    : {};
+  const saveAs = String(raw?.save_as ?? "").trim();
+  if (saveAs && params.save_as === undefined) {
+    params.save_as = saveAs;
+  }
   return {
     id: String(raw?.id ?? `step_${index + 1}`),
     action: String(raw?.action ?? "").trim(),
     target: String(raw?.target ?? ""),
     value: String(raw?.value ?? ""),
-    params: (raw?.params && typeof raw.params === "object" && !Array.isArray(raw.params))
-      ? raw.params
-      : {},
+    params,
+    save_as: saveAs,
     timeout_ms: Number(raw?.timeout_ms ?? 30000),
     optional: Boolean(raw?.optional ?? false),
     guards: Array.isArray(raw?.guards) ? raw.guards.map(normalizeGuard) : [],
