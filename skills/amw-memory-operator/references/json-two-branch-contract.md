@@ -1,23 +1,34 @@
 # JSON Two-Branch Contract
 
-Use this contract to keep trajectories simple and non-bloated.
+Keep trajectories simple and non-bloated.
 
 ## Branch Limit
 
 Only two branches are allowed:
 
 1. `steps` (normal branch, required)
-2. `branches.human_verify.steps` (human-verification branch, optional)
+2. `branches.challenge.steps` (challenge-handling branch, optional)
+
+## Meaning of Challenge Branch
+
+`challenge` means runtime blockers, for example:
+
+- cookie/consent popups
+- risk interstitial pages
+- captcha/robot checks
+- QR/login gates
+
+It does not mean manual QA.
 
 ## Reserved Fields
 
 Current runtime executes `steps` as primary path.  
-The following fields are reserved for AI planning and future runtime branch execution:
+The following fields are reserved for AI planning and future branch execution:
 
 - `branch_policy.max_branches`
 - `branch_policy.on_step_error`
-- `branch_policy.on_human_verify_error`
-- `branches.human_verify`
+- `branch_policy.on_challenge_error`
+- `branches.challenge`
 
 ## Suggested Schema
 
@@ -25,26 +36,30 @@ The following fields are reserved for AI planning and future runtime branch exec
 {
   "steps": [],
   "branches": {
-    "human_verify": {
+    "challenge": {
       "enabled": true,
       "trigger": {
-        "error_contains_any": ["captcha", "verification", "二维码", "robot check"],
-        "snapshot_contains_any": ["验证码", "请完成验证"]
+        "error_contains_any": ["captcha", "verification", "robot check", "risk"],
+        "snapshot_contains_any": ["captcha", "verify", "confirm you are human"]
       },
       "steps": []
     }
   },
   "branch_policy": {
     "max_branches": 2,
-    "on_step_error": "human_verify",
-    "on_human_verify_error": "re_explore"
+    "on_step_error": "challenge",
+    "on_challenge_error": "re_explore"
   }
 }
 ```
 
+## Compatibility
+
+Legacy key `branches.human_verify` may still exist in old JSON.
+When encountered, treat it as alias of `branches.challenge`.
+
 ## Practical Rule
 
 - Keep `steps` runnable end-to-end.
-- Keep `branches.human_verify.steps` minimal: capture evidence, handoff, then continue.
-- If both normal and human_verify fail, AI should re-explore and rewrite only the broken segment.
-
+- Keep challenge branch minimal: capture evidence, handoff/recover, then continue.
+- If both normal and challenge branch fail, re-explore and patch only broken segment.

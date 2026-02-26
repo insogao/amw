@@ -1,0 +1,26 @@
+{
+  "amw_match_line": "amw site:example.com task:probe flow:compressed_probe_v1 key:probe key:snapshot key:eval_js",
+  "metadata": {
+    "purpose": "compressed-first probing",
+    "note": "keep probe prelude at top; screenshot is fallback only"
+  },
+  "steps": [
+    {
+      "id": "open_site",
+      "action": "open",
+      "target": "https://example.com"
+    },
+    {
+      "id": "probe_snapshot",
+      "action": "snapshot",
+      "value": "interactive",
+      "params": { "save_as": "probe_snapshot" }
+    },
+    {
+      "id": "probe_dom_scan",
+      "action": "eval_js",
+      "value": "return Array.from(document.querySelectorAll('input,textarea,button,a,[role=\"button\"]')).slice(0, 40).map((el) => ({ tag: el.tagName.toLowerCase(), id: el.id || '', name: el.getAttribute('name') || '', placeholder: el.getAttribute('placeholder') || '', aria: el.getAttribute('aria-label') || '', text: (el.innerText || '').trim().slice(0, 40) }));",
+      "params": { "save_as": "probe_dom_scan" }
+    }
+  ]
+}
