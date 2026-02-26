@@ -5,7 +5,7 @@ description: Operate and evolve agent-memory-workbench with replay-first browser
 
 # AMW Memory Operator
 
-Skill Version: `v0.1.1`
+Skill Version: `v0.1.2`
 
 ## Mission
 
@@ -21,8 +21,14 @@ Run browser tasks with this priority:
 1. Max two branches only: `normal` + `challenge-handling`.
 2. Default mode is autonomous probe, not manual observe.
 3. Manual `observe` requires explicit user approval first.
-4. Evidence priority: `snapshot`/`eval_js` first, screenshot last.
+4. Probe evidence bundle is required: generate both `snapshot.json` and `screenshot.png`, then read snapshot first.
 5. New/temporary JSON must stay in `trajectories/tmp/`.
+
+Probe evidence naming/location:
+
+1. Directory: `./artifacts/probes/`
+2. Snapshot file: `{{context.site}}_{{context.task_type}}_snapshot.json`
+3. Screenshot file: `{{context.site}}_{{context.task_type}}_screenshot.png`
 
 ## State Machine (Read by Current State)
 
@@ -76,7 +82,7 @@ Install:
 
 1. Entering `observe` without user approval.
 2. Treating replay success as proof of new fallback JSON.
-3. Screenshot-first debugging when snapshot/eval_js is sufficient.
+3. Screenshot-only debugging without snapshot/eval_js prelude.
 4. Writing user-generated JSON directly into `examples/`.
 
 ## Clarification

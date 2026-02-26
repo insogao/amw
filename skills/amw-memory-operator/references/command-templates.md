@@ -22,6 +22,15 @@ Start from:
 
 Copy it to `trajectories/tmp/<task>_probe.json`, then append task-specific steps after probe prelude.
 
+Probe artifacts are written together under:
+
+`./artifacts/probes/`
+
+Naming:
+
+- `{{context.site}}_{{context.task_type}}_snapshot.json`
+- `{{context.site}}_{{context.task_type}}_screenshot.png`
+
 ## Validate
 
 `npm run amw -- validate --steps-file ./trajectories/tmp/<file>.json`

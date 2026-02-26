@@ -6,23 +6,34 @@ Use this state when no confident hit exists or replay failed.
 
 1. Run fallback/probe with `--disable-replay true`.
 2. Keep browser headed for fast selector diagnosis.
-3. Collect evidence in this order:
-   1. `snapshot` (interactive/compressed structure)
-   2. `eval_js` (precise DOM fields/attributes)
-   3. `screenshot` only if above cannot answer
+3. Collect probe evidence bundle:
+   1. `snapshot` (interactive/compressed structure, saved to json)
+   2. `screenshot` (full-page visual fallback, saved to png)
+   3. `eval_js` (precise DOM fields/attributes)
 4. Patch only the failed segment in `trajectories/tmp/`.
 5. Re-run one probe immediately.
 
 ## Required Probe Prelude (Do First)
 
-Before changing selectors, add these two steps at the top of probe JSON:
+Before changing selectors, add these prelude steps at the top of probe JSON:
 
 ```json
 {
   "id": "probe_snapshot",
   "action": "snapshot",
   "value": "interactive",
-  "params": { "save_as": "probe_snapshot" }
+  "params": {
+    "save_as": "probe_snapshot",
+    "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json"
+  }
+},
+{
+  "id": "probe_screenshot",
+  "action": "screenshot",
+  "params": {
+    "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_screenshot.png",
+    "full_page": true
+  }
 },
 {
   "id": "probe_dom_scan",
@@ -32,7 +43,12 @@ Before changing selectors, add these two steps at the top of probe JSON:
 }
 ```
 
-If these steps are missing, do not start screenshot-first debugging.
+Read order:
+
+1. Read `*_snapshot.json` first.
+2. If unclear, read `*_screenshot.png`.
+
+If prelude steps are missing, do not patch selectors yet.
 
 ## JSON Editing Rules
 

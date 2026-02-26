@@ -220,12 +220,32 @@ export function createDefaultActionRegistry() {
       const waitValue = Number(step.value || step.target || step.params?.ms || 1000);
       return adapter.waitMs(waitValue);
     }],
-    ["snapshot", async ({ adapter, step }) => {
+    ["snapshot", async ({ adapter, step, runtime }) => {
       const interactiveToken = String(
         step.params?.interactive ?? step.value ?? step.target ?? ""
       ).toLowerCase();
       const interactive = ["1", "true", "i", "interactive"].includes(interactiveToken);
-      return adapter.snapshot(interactive);
+      const result = await adapter.snapshot(interactive);
+      const outputPath = String(step.params?.path || "").trim();
+      if (!outputPath) {
+        return result;
+      }
+      const absolute = path.resolve(outputPath);
+      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      fs.writeFileSync(
+        absolute,
+        `${JSON.stringify(
+          {
+            snapshot: result.snapshot,
+            refs: result.refs
+          },
+          null,
+          2
+        )}\n`,
+        "utf-8"
+      );
+      runtime.artifacts.generated_files.push(absolute);
+      return { ...result, path: absolute };
     }],
     ["screenshot", async ({ adapter, step, runtime }) => {
       const outputPath = String(step.target || step.value || step.params?.path || "").trim();
