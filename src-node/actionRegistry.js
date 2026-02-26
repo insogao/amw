@@ -88,6 +88,18 @@ function resolveClip(params) {
   return null;
 }
 
+function deriveScreenshotPath(snapshotPath) {
+  const raw = String(snapshotPath || "").trim();
+  if (!raw) return "";
+  if (/_snapshot\.json$/i.test(raw)) {
+    return raw.replace(/_snapshot\.json$/i, "_screenshot.png");
+  }
+  if (/\.json$/i.test(raw)) {
+    return raw.replace(/\.json$/i, ".png");
+  }
+  return `${raw}_screenshot.png`;
+}
+
 export function createDefaultActionRegistry() {
   return new Map([
     ["open", async ({ adapter, step }) => adapter.open(step.target || step.value, step.timeout_ms)],
@@ -227,25 +239,51 @@ export function createDefaultActionRegistry() {
       const interactive = ["1", "true", "i", "interactive"].includes(interactiveToken);
       const result = await adapter.snapshot(interactive);
       const outputPath = String(step.params?.path || "").trim();
+      const defaultBundle = Boolean(interactive && outputPath);
+      const bundleWithScreenshot = step.params?.bundle_with_screenshot === undefined
+        ? defaultBundle
+        : Boolean(step.params?.bundle_with_screenshot);
+      let snapshotAbsolute = "";
       if (!outputPath) {
-        return result;
+        if (!bundleWithScreenshot) return result;
+      } else {
+        snapshotAbsolute = path.resolve(outputPath);
+        fs.mkdirSync(path.dirname(snapshotAbsolute), { recursive: true });
+        fs.writeFileSync(
+          snapshotAbsolute,
+          `${JSON.stringify(
+            {
+              snapshot: result.snapshot,
+              refs: result.refs
+            },
+            null,
+            2
+          )}\n`,
+          "utf-8"
+        );
+        runtime.artifacts.generated_files.push(snapshotAbsolute);
       }
-      const absolute = path.resolve(outputPath);
-      fs.mkdirSync(path.dirname(absolute), { recursive: true });
-      fs.writeFileSync(
-        absolute,
-        `${JSON.stringify(
-          {
-            snapshot: result.snapshot,
-            refs: result.refs
-          },
-          null,
-          2
-        )}\n`,
-        "utf-8"
-      );
-      runtime.artifacts.generated_files.push(absolute);
-      return { ...result, path: absolute };
+
+      if (!bundleWithScreenshot) {
+        return snapshotAbsolute ? { ...result, path: snapshotAbsolute } : result;
+      }
+
+      const screenshotPathRaw = String(
+        step.params?.screenshot_path ||
+          deriveScreenshotPath(outputPath) ||
+          `./artifacts/probes/snapshot_${Date.now()}_screenshot.png`
+      ).trim();
+      const screenshot = await adapter.screenshot({
+        path: screenshotPathRaw,
+        fullPage: true,
+        timeoutMs: step.timeout_ms
+      });
+      runtime.artifacts.generated_files.push(screenshot.path);
+      return {
+        ...result,
+        ...(snapshotAbsolute ? { path: snapshotAbsolute } : {}),
+        screenshot_path: screenshot.path
+      };
     }],
     ["screenshot", async ({ adapter, step, runtime }) => {
       const outputPath = String(step.target || step.value || step.params?.path || "").trim();

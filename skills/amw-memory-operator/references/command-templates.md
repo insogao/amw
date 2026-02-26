@@ -15,6 +15,7 @@
 `npm run amw -- run --site <site> --task-type <task_type>_probe_v1 --intent "<intent>" --fallback-steps-file ./trajectories/tmp/<file>.json --store-dir ./data/<store> --disable-replay true --headed true`
 
 规则：运行时生成的 probe JSON 必须存到 `trajectories/tmp/`，不能存到 `.agents/skills/**`。
+
 说明：`--disable-replay true` 仅表示“跳过记忆命中，强制执行当前 fallback/probe JSON”，不是日志开关。
 
 ## 压缩 Probe 模板
@@ -33,6 +34,8 @@ Probe 产物统一写入：
 
 - `{{context.site}}_{{context.task_type}}_snapshot.json`
 - `{{context.site}}_{{context.task_type}}_screenshot.png`
+
+提示：推荐在同一个 `snapshot` 步骤中设置 `bundle_with_screenshot=true`，自动产出上述两份文件，无需再单独加 `screenshot` 步骤。
 
 ## 校验
 

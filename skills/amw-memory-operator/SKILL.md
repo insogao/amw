@@ -21,7 +21,7 @@ Skill Version: `v0.1.9`
 1. 最多两个分支：`normal` + `challenge-handling`。
 2. 默认走 autonomous probe，不默认走 manual observe。
 3. 手动 `observe` 必须先获得用户明确同意。
-4. Probe 证据包必备：同时生成 `snapshot.json` 与 `screenshot.png`，阅读顺序先 snapshot。
+4. Probe 证据包必备：优先使用一个 `snapshot` 步骤同步生成 `snapshot.json` 与 `screenshot.png`，阅读顺序先 snapshot。
 5. 新建/临时 JSON 必须放在 `trajectories/tmp/`。
 6. 选择器优先级：snapshot refs / 语义定位优先，CSS 最后兜底。
 7. 工具优先策略：优先使用 AMW 内建 actions，再考虑外部方案。
@@ -39,7 +39,7 @@ Skill Version: `v0.1.9`
 5. 若缺少原生 action，先明确“缺的是哪一个 action”，再请求用户同意后再走外部兜底。
 6. 运行时 probe 文件禁止写入 `.agents/skills/**`，只能写入 `trajectories/tmp/`。
 
-Probe 证据命名与位置：
+Probe 证据命名与位置（由 `snapshot` 步骤自动生成同名配对文件）：
 
 1. 目录：`./artifacts/probes/`
 2. Snapshot 文件：`{{context.site}}_{{context.task_type}}_snapshot.json`
@@ -68,7 +68,7 @@ Feature: AMW 运行决策
   Scenario: 未命中或 replay 失败，进入 probe
     Given 没有高置信命中或 replay 失败
     When 执行 run 并设置 --disable-replay true
-    Then 生成 probe 证据包 snapshot + screenshot + eval_js
+    Then 通过 snapshot 步骤自动生成 snapshot + screenshot，并执行 eval_js
     And 仅修补 trajectories/tmp 中失败片段
     And 立即重跑一次 probe
 
@@ -120,7 +120,7 @@ Feature: AMW 运行决策
 3. 新 JSON 验证时，必须带 `--disable-replay true`。
 4. 日志默认开启，无需额外参数：每次 `run` 都会产出 `events.jsonl` 和 `summary.json`。
 
-## 反模式
+## 禁止这些行为
 
 1. 未获用户同意就进入 `observe`。
 2. 把 replay 成功当作“新 fallback JSON 已验证”的证据。

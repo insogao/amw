@@ -4,12 +4,11 @@
 
 ## 默认路径：Auto-Probe
 
-1. 用 `--disable-replay true` 运行 fallback/probe。
+1. 使用 `--disable-replay true` 运行 fallback/probe。
 2. 浏览器保持有头模式，便于快速定位 selector 问题。
 3. 收集 probe 证据包：
-   1. `snapshot`（interactive/压缩结构，保存为 json）
-   2. `screenshot`（整页视觉兜底，保存为 png）
-   3. `eval_js`（精确 DOM 字段/属性）
+   1. `snapshot`（interactive/压缩结构，自动同步产出 json + png）
+   2. `eval_js`（精确 DOM 字段/属性）
 4. 仅修补 `trajectories/tmp/` 中失败片段。
 5. 立即重跑一次 probe。
 
@@ -24,15 +23,8 @@
   "value": "interactive",
   "params": {
     "save_as": "probe_snapshot",
-    "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json"
-  }
-},
-{
-  "id": "probe_screenshot",
-  "action": "screenshot",
-  "params": {
-    "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_screenshot.png",
-    "full_page": true
+    "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json",
+    "bundle_with_screenshot": true
   }
 },
 {
