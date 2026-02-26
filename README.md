@@ -12,11 +12,13 @@ No source files are modified in those projects.
 
 Build a reusable execution loop:
 
-1. Try replaying a previously successful trajectory.
-2. Validate each step with guards.
-3. If replay fails, fallback to exploratory steps.
-4. Save successful exploration as a new trajectory version.
-5. Keep structured run logs for later summarization.
+1. Observe-first: collect live operation trace while operating browser.
+2. AI reviews trace and writes trajectory JSON in `trajectories/tmp/`.
+3. Try replaying a previously successful trajectory.
+4. Validate each step with guards.
+5. If replay fails, fallback to exploratory steps.
+6. Save successful exploration as a new trajectory version.
+7. Keep structured run logs for later summarization.
 
 ## Architecture
 
@@ -26,6 +28,7 @@ Build a reusable execution loop:
 - `ActionRegistry`: action dispatch table (`action -> handler`) for JSON-driven tasks.
 - `TrajectoryExecutor`: replays steps, checks guards, supports human handoff.
 - `RunLogger`: writes JSONL events and run summary.
+- `TraceLogger`: writes synchronous observe traces (`data/.../traces/*.jsonl`).
 - `Orchestrator`: replay-first, fallback-explore-second.
 
 `memory.db` is actively used for trajectory storage + replay stats (`usage_count`, `success_rate`, `avg_latency_ms`).
@@ -54,6 +57,36 @@ Recommended flow:
 2. Validate and run with `--disable-replay true`.
 3. Promote successful trajectory to `trajectories/ready/`.
 4. Move replaced old version to `trajectories/archive/`.
+
+## Trace-First Exploration (Recommended)
+
+When no stable trajectory exists, do not start by hand-writing JSON.
+
+1. Open browser and synchronously capture operation trace:
+
+```bash
+npm run amw -- observe ^
+  --site baidu.com ^
+  --intent "百度搜索刘亦菲照片并下载2张" ^
+  --store-dir ./data ^
+  --trace-file ./data/traces/baidu_image_trace.jsonl ^
+  --headed true
+```
+
+2. Preferred: AI directly reads trace and writes JSON in `trajectories/tmp/`.
+
+3. Optional fallback: compile trace into a trajectory draft when trace is noisy or needs quick bootstrap:
+
+```bash
+npm run amw -- trace-to-json ^
+  --trace-file ./data/traces/baidu_image_trace.jsonl ^
+  --site baidu.com ^
+  --task-type image_search_download ^
+  --intent "百度搜索刘亦菲照片并下载2张" ^
+  --output-steps-file ./trajectories/tmp/baidu_image_download_from_trace.json
+```
+
+4. Validate and iterate the JSON in `trajectories/tmp/`.
 
 ## JSON Actions
 

@@ -14,6 +14,36 @@ Use this skill when the user wants to run, debug, or evolve browser automation i
 - Artifact extraction (markdown, screenshot, image copy, QR capture)
 - Run-log based debugging with minimal JSON edits
 
+## Operating Sequence (Required)
+
+Follow this order; do not skip steps:
+
+1. Bootstrap runtime (clone/install) if project is missing.
+2. Search reusable trajectories in `trajectories/ready/`.
+3. If no confident hit, run Observe-First before writing any new JSON.
+4. Create/modify trajectory only in `trajectories/tmp/`.
+5. Validate and probe with `--disable-replay true`.
+6. Promote to `trajectories/ready/` only after repeated success.
+
+Success gate for new trajectory verification:
+
+1. `summary.mode` must be `explore` (not `replay`).
+2. Acceptance checks (`assert_*`) must pass.
+3. Output artifacts must match expected file/path/content constraints.
+
+Do not mark a new trajectory as verified if run mode is `replay`.
+
+## Observe-First (Required on Miss)
+
+If retrieval misses or candidate confidence is low, collect evidence first:
+
+1. Start live trace via `observe` (synchronous logging during operation).
+2. Perform task manually or semi-manually in headed browser.
+3. AI reads trace and writes/patches JSON in `trajectories/tmp/`.
+4. Use `trace-to-json` only as fallback when trace is too noisy.
+
+Only after this evidence is collected, write new JSON in `trajectories/tmp/`.
+
 ## Trajectory Governance (Required)
 
 Directory policy (do not mix):
@@ -123,6 +153,7 @@ Current mode is local-first. For distribution later:
 - Archived trajectories: `trajectories/archive/`
 - Artifacts: `artifacts/`
 - Runs: `data/<store>/runs/<run_id>/events.jsonl` and `summary.json`
+- Observe traces: `data/<store>/traces/*.jsonl`
 - Memory DB: `data/<store>/memory.db`
 
 ## Meta Capabilities (JSON Actions)
@@ -200,6 +231,20 @@ On failure, inspect in order:
 Patch only the failed segment, then re-run once in headed mode.
 For fallback verification, add `--disable-replay true` so replay memory does not mask issues.
 
+Replay-mask prevention checklist:
+
+1. For new JSON probing, always pass `--disable-replay true`.
+2. Prefer probe task type suffix (for example `*_probe_v2`) during iteration.
+3. Verify `summary.mode == "explore"` before claiming test success.
+4. Avoid static artifact filenames during probes; include run-specific suffix when possible.
+
+## Anti-Patterns (Do Not Do)
+
+1. Do not write trajectory JSON before Observe-First evidence is captured.
+2. Do not treat a successful `replay` run as proof that new fallback JSON works.
+3. Do not keep patching many unrelated steps at once; patch minimum failed segment.
+4. Do not promote tmp trajectory to ready after a single lucky run.
+
 ## Command Templates
 
 Run:
@@ -210,9 +255,24 @@ Run (force fallback):
 
 `npm run amw -- run --site <site> --task-type <task_type> --intent "<intent>" --fallback-steps-file ./trajectories/tmp/<file>.json --store-dir ./data/<store> --disable-replay true`
 
+Run probe (recommended for new JSON):
+
+`npm run amw -- run --site <site> --task-type <task_type>_probe_v1 --intent "<intent>" --fallback-steps-file ./trajectories/tmp/<file>.json --store-dir ./data/<store> --disable-replay true --headed true`
+
 Validate JSON:
 
 `npm run amw -- validate --steps-file ./trajectories/tmp/<file>.json`
+
+Observe-first trace capture:
+
+`npm run amw -- observe --site <site_or_url> --intent "<intent>" --store-dir ./data/<store> --trace-file ./data/<store>/traces/<name>.jsonl --headed true`
+
+Compile trace to JSON draft:
+
+`npm run amw -- trace-to-json --trace-file ./data/<store>/traces/<name>.jsonl --site <site> --task-type <task_type> --intent "<intent>" --output-steps-file ./trajectories/tmp/<file>.json`
+
+Note:
+`trace-to-json` is an emergency bootstrap tool, not mandatory. Default is AI direct trace review.
 
 Inspect:
 

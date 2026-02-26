@@ -59,3 +59,36 @@ export class RunLogger {
   }
 }
 
+export class TraceLogger {
+  constructor(traceFilePath, metadata = {}) {
+    this.traceFile = path.resolve(String(traceFilePath));
+    this.startedAt = Date.now();
+    this.events = 0;
+    fs.mkdirSync(path.dirname(this.traceFile), { recursive: true });
+    this.event("trace_start", metadata);
+  }
+
+  event(eventType, payload = {}) {
+    this.events += 1;
+    const row = {
+      ts: utcNowIso(),
+      seq: this.events,
+      event_type: String(eventType || "unknown"),
+      payload
+    };
+    fs.appendFileSync(this.traceFile, `${JSON.stringify(row)}\n`, "utf-8");
+  }
+
+  summarize(status = "success", extra = {}) {
+    const summary = {
+      status,
+      trace_file: this.traceFile,
+      elapsed_ms: Date.now() - this.startedAt,
+      events: this.events,
+      finished_at: utcNowIso(),
+      ...extra
+    };
+    this.event("trace_end", summary);
+    return summary;
+  }
+}

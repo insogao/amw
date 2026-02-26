@@ -30,6 +30,10 @@ export class AgentBrowserAdapter {
     this.profileDir = path.resolve(String(profileDir || "./profiles"));
     this.manager = new BrowserManager();
     this.launched = false;
+    this.traceSink = null;
+    this.traceListeners = null;
+    this.traceInstalled = false;
+    this.traceBindingInstalled = false;
   }
 
   async #ensureLaunched() {
@@ -355,6 +359,219 @@ export class AgentBrowserAdapter {
       await page.screenshot({ path: finalPath, fullPage: Boolean(fullPage), timeout: timeoutMs });
     }
     return { path: finalPath, selector: selector || null, full_page: Boolean(fullPage), clip: clip || null };
+  }
+
+  #emitTrace(eventType, payload = {}) {
+    if (typeof this.traceSink !== "function") return;
+    try {
+      this.traceSink({
+        event_type: String(eventType || "unknown"),
+        payload: {
+          ...payload,
+          session: this.session,
+          profile: this.profile
+        }
+      });
+    } catch {
+      // ignore observer-side errors
+    }
+  }
+
+  async startLiveTrace(onEvent) {
+    await this.#ensureLaunched();
+    const page = this.manager.getPage();
+    this.traceSink = typeof onEvent === "function" ? onEvent : null;
+
+    if (!this.traceBindingInstalled) {
+      try {
+        await page.exposeBinding("__amwTraceEmit", (_source, event) => {
+          if (!event || typeof event !== "object") return;
+          const eventType = String(event.type || "ui.unknown");
+          const payload = (event.payload && typeof event.payload === "object")
+            ? event.payload
+            : {};
+          this.#emitTrace(eventType, payload);
+        });
+        this.traceBindingInstalled = true;
+      } catch {
+        // ignore duplicate binding or runtime mismatch
+      }
+    }
+
+    const installScript = () => {
+      if (window.__amw_trace_installed) return;
+      window.__amw_trace_installed = true;
+
+      const emit = (type, payload) => {
+        try {
+          if (typeof window.__amwTraceEmit === "function") {
+            window.__amwTraceEmit({ type, payload });
+          }
+        } catch {
+          // swallow UI trace errors
+        }
+      };
+
+      const safe = (value, max = 280) => {
+        const text = String(value ?? "").replace(/\s+/g, " ").trim();
+        return text.length > max ? text.slice(0, max) : text;
+      };
+
+      const cssEscape = (value) => {
+        if (window.CSS && typeof window.CSS.escape === "function") {
+          return window.CSS.escape(String(value));
+        }
+        return String(value).replace(/["\\]/g, "\\$&");
+      };
+
+      const selectorOf = (el) => {
+        if (!(el instanceof Element)) return "";
+        if (el.id) return `#${cssEscape(el.id)}`;
+
+        const tag = String(el.tagName || "").toLowerCase();
+        const attrs = [
+          "name",
+          "data-testid",
+          "aria-label",
+          "placeholder",
+          "title",
+          "type",
+          "alt"
+        ];
+        for (const key of attrs) {
+          const value = el.getAttribute(key);
+          if (value && String(value).trim()) {
+            return `${tag}[${key}="${cssEscape(String(value).trim())}"]`;
+          }
+        }
+
+        const classList = Array.from(el.classList || []).filter(Boolean);
+        if (classList.length > 0) {
+          return `${tag}.${cssEscape(classList[0])}`;
+        }
+
+        return tag || "";
+      };
+
+      const textOf = (el) => {
+        if (!(el instanceof Element)) return "";
+        if ("value" in el && typeof el.value === "string") return safe(el.value, 200);
+        return safe(el.textContent || "", 200);
+      };
+
+      const lastInputBySelector = new Map();
+
+      document.addEventListener(
+        "click",
+        (evt) => {
+          const base = evt.target instanceof Element ? evt.target : null;
+          if (!base) return;
+          const el = base.closest("a,button,input,textarea,select,img,[role='button'],[onclick]") || base;
+          emit("ui.click", {
+            selector: selectorOf(el),
+            tag: String(el.tagName || "").toLowerCase(),
+            text: textOf(el),
+            x: Math.round(Number(evt.clientX ?? 0)),
+            y: Math.round(Number(evt.clientY ?? 0))
+          });
+        },
+        true
+      );
+
+      const emitInput = (evtType, target) => {
+        const el = target instanceof Element ? target : null;
+        if (!el) return;
+        const selector = selectorOf(el);
+        if (!selector) return;
+
+        let value = "";
+        if ("value" in el && typeof el.value === "string") {
+          value = safe(el.value, 400);
+        } else if (el.isContentEditable) {
+          value = safe(el.textContent || "", 400);
+        } else {
+          return;
+        }
+
+        const previous = lastInputBySelector.get(selector);
+        if (previous === value && evtType === "input") return;
+        lastInputBySelector.set(selector, value);
+        emit(`ui.${evtType}`, {
+          selector,
+          tag: String(el.tagName || "").toLowerCase(),
+          value
+        });
+      };
+
+      document.addEventListener("input", (evt) => emitInput("input", evt.target), true);
+      document.addEventListener("change", (evt) => emitInput("change", evt.target), true);
+
+      document.addEventListener(
+        "keydown",
+        (evt) => {
+          const importantKeys = new Set(["Enter", "Escape", "Tab", "ArrowDown", "ArrowUp"]);
+          if (!importantKeys.has(String(evt.key))) return;
+          const el = evt.target instanceof Element ? evt.target : null;
+          emit("ui.keydown", {
+            key: String(evt.key || ""),
+            selector: selectorOf(el),
+            tag: el ? String(el.tagName || "").toLowerCase() : ""
+          });
+        },
+        true
+      );
+    };
+
+    try {
+      await page.addInitScript(installScript);
+      await page.evaluate(installScript);
+    } catch {
+      // best-effort script installation
+    }
+
+    if (!this.traceInstalled) {
+      const navListener = (frame) => {
+        try {
+          if (frame === page.mainFrame()) {
+            this.#emitTrace("browser.navigate", { url: String(frame.url() || "") });
+          }
+        } catch {
+          // ignore frame navigation errors
+        }
+      };
+      const loadListener = () => {
+        this.#emitTrace("browser.domcontentloaded", { url: String(page.url() || "") });
+      };
+      page.on("framenavigated", navListener);
+      page.on("domcontentloaded", loadListener);
+      this.traceListeners = {
+        page,
+        navListener,
+        loadListener
+      };
+      this.traceInstalled = true;
+      this.#emitTrace("browser.navigate", { url: String(page.url() || "") });
+      this.#emitTrace("trace.started", { url: String(page.url() || "") });
+    }
+
+    return { ok: true };
+  }
+
+  async stopLiveTrace() {
+    if (this.traceListeners?.page) {
+      const { page, navListener, loadListener } = this.traceListeners;
+      try {
+        page.off("framenavigated", navListener);
+        page.off("domcontentloaded", loadListener);
+      } catch {
+        // ignore detach errors
+      }
+    }
+    this.#emitTrace("trace.stopped", {});
+    this.traceListeners = null;
+    this.traceInstalled = false;
+    this.traceSink = null;
+    return { ok: true };
   }
 
   async close() {
