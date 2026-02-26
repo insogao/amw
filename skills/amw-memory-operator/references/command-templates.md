@@ -14,6 +14,8 @@
 
 `npm run amw -- run --site <site> --task-type <task_type>_probe_v1 --intent "<intent>" --fallback-steps-file ./trajectories/tmp/<file>.json --store-dir ./data/<store> --disable-replay true --headed true`
 
+Rule: runtime-generated probe JSON must be stored in `trajectories/tmp/`, not `.agents/skills/**`.
+
 ## Compression Probe Template
 
 Start from:

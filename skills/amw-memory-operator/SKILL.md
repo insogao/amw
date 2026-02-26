@@ -5,7 +5,7 @@ description: Operate and evolve agent-memory-workbench with replay-first browser
 
 # AMW Memory Operator
 
-Skill Version: `v0.1.4`
+Skill Version: `v0.1.5`
 
 ## Mission
 
@@ -32,7 +32,7 @@ Before creating or patching trajectory JSON, do this in order:
 
 1. Confirm available AMW actions from `src-node/actionRegistry.js`.
 2. If AMW has a native action for the task (`snapshot`, `eval_js`, `copy_image`, `copy_image_original`, `write_markdown`, etc.), use it directly.
-3. Do not switch to unrelated skills/workflows (for example `celebrity-image-downloader`) while this skill is active.
+3. Do not switch to unrelated skills/workflows while this skill is active.
 4. Do not generate Python/Node helper scripts as fallback unless:
    - user explicitly requests external scripting, or
    - AMW has no native action to complete the step.
@@ -105,8 +105,14 @@ Install:
 2. Treating replay success as proof of new fallback JSON.
 3. Screenshot-only debugging without snapshot/eval_js prelude.
 4. Writing user-generated JSON directly into `examples/`.
-5. Jumping to Python downloads when `copy_image`/`copy_image_original` can do the job.
+5. Jumping to external scripts (Python/Node/shell) when AMW native actions already cover the step.
 6. Cross-calling another skill path while `amw-memory-operator` is already selected.
+
+## Response Contract
+
+At task start, state this one-line ACK before execution:
+
+`AMW ACK: I will use AMW-native actions first, keep runtime JSON in trajectories/tmp, and use external scripts only with explicit approval or missing native action.`
 
 ## Clarification
 

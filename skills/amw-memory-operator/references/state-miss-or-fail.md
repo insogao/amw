@@ -56,6 +56,8 @@ If prelude steps are missing, do not patch selectors yet.
 2. Externalize variable input using `{{vars.xxx}}`.
 3. Keep `assert_*` checks at tail.
 4. Keep branch count <= 2.
+5. Keep runtime JSON under `trajectories/tmp/` only; never under `.agents/skills/**`.
+6. Do not create external scripts if AMW native actions can complete the step.
 
 ## Success Gate
 

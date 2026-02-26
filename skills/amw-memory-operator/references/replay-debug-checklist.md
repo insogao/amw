@@ -19,6 +19,6 @@ When a run fails, follow this order:
 
 - Patch only failed segment.
 - Keep JSON variable-driven; avoid hardcoded user input.
+- Keep solution AMW-native first; avoid external scripts unless approved or native action is missing.
 - Re-run once in headed mode with hold:
   - `--headed true --hold-open-ms 30000`
-

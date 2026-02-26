@@ -7,7 +7,7 @@ Use this state when probe run succeeded and trajectory is candidate reusable mem
 1. In progress: `trajectories/tmp/`
 2. Reusable: `trajectories/ready/`
 3. Historical: `trajectories/archive/`
-4. Local scratch only: `examples/`
+4. Demo-only (read reference, do not write runtime files): `examples/`
 
 ## Promotion Steps
 
@@ -20,4 +20,3 @@ Use this state when probe run succeeded and trajectory is candidate reusable mem
 ## ACK Line
 
 `Governance ACK: new JSON -> trajectories/tmp, reusable JSON -> trajectories/ready, grep default -> trajectories/ready.`
-
