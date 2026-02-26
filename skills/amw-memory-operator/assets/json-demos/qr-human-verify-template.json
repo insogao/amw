@@ -29,27 +29,27 @@
       },
       "steps": [
         {
-          "id": "mark_qr_node",
+          "id": "detect_qr_node",
           "action": "eval_js",
           "params": {
-            "save_as": "qr_detect",
+            "save_as": "qr_detection_result",
             "script": "const img=document.querySelector(\"img[src*='qrcode'], img[class*='qr'], [class*='qrcode'] img\"); if(img){img.id='amw_qr_target'; return {found:true};} return {found:false};"
           }
         },
         {
-          "id": "save_qr_original",
-          "action": "copy_image_original",
+          "id": "save_qr_image_file",
+          "action": "download_image",
           "target": "#amw_qr_target",
           "params": {
             "path": "./artifacts/login_qr.png",
-            "save_as": "qr_capture"
+            "save_as": "qr_image_file"
           },
           "optional": true
         },
         {
           "id": "human_scan_qr",
           "action": "human_handoff",
-          "value": "QR saved to {{vars.qr_capture.path}}. Please scan and press Enter."
+          "value": "QR saved to {{vars.qr_image_file}}. Please scan and press Enter."
         }
       ]
     }

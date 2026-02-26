@@ -15,7 +15,7 @@
 1. 正常分支保持不变。
 2. 只新增/维护一个 challenge-handling 分支。
 3. 保存必要证据/产物：
-   1. 优先 `copy_image_original`
+   1. 优先 `download_image`
    2. 其次 selector/clip 截图
 4. 若无法自动解决阻断，调用 `human_handoff` 或快速失败并给出清晰原因。
 5. 阻断解除后回到正常分支继续执行。

@@ -300,9 +300,9 @@ function validateStepsPayload(payload) {
       if (!script) errors.push(`${at} eval_js requires step.value or params.script`);
     }
 
-    if (action === "copy_image_original") {
+    if (action === "download_image") {
       const selector = String(step.target ?? step.params?.selector ?? "").trim();
-      if (!selector) errors.push(`${at} copy_image_original requires selector (target or params.selector)`);
+      if (!selector) errors.push(`${at} ${action} requires selector (target or params.selector)`);
     }
 
     if (action === "assert_file") {

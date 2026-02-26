@@ -18,20 +18,20 @@
 
 ```json
 {
-  "id": "probe_snapshot",
+  "id": "probe_snapshot_capture",
   "action": "snapshot",
   "value": "interactive",
   "params": {
-    "save_as": "probe_snapshot",
+    "save_as": "probe_snapshot_data",
     "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json",
     "bundle_with_screenshot": true
   }
 },
 {
-  "id": "probe_dom_scan",
+  "id": "probe_interactive_scan",
   "action": "eval_js",
   "value": "return Array.from(document.querySelectorAll('input,textarea,button,a,[role=\"button\"]')).slice(0, 40).map((el) => ({ tag: el.tagName.toLowerCase(), id: el.id || '', name: el.getAttribute('name') || '', placeholder: el.getAttribute('placeholder') || '', aria: el.getAttribute('aria-label') || '', text: (el.innerText || '').trim().slice(0, 40) }));",
-  "params": { "save_as": "probe_dom_scan" }
+  "params": { "save_as": "interactive_elements" }
 }
 ```
 

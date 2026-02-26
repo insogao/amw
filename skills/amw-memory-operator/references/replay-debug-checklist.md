@@ -13,7 +13,7 @@
 - Selector 超时：放宽选择器兜底或补 `wait`。
 - URL 不匹配：增加 guard 或修正导航步骤。
 - 数据抽取缺失：调整 `eval_js` 的 selector/逻辑。
-- 验证阻断：转 `human_handoff` 并保存证据（优先 `copy_image_original`）。
+- 验证阻断：转 `human_handoff` 并保存证据（优先 `download_image`）。
 
 ## 最小修补原则
 

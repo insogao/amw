@@ -95,7 +95,7 @@ Current built-in actions:
 - `open`, `click`, `click_text`, `fill`, `type`, `press`
 - `wait`, `snapshot`, `get_url`
 - `screenshot`, `assert_file`
-- `copy_text`, `copy_image`, `copy_image_original`, `paste_text`, `paste_image`
+- `copy_text`, `capture_image`, `download_image`, `paste_text`, `paste_image`
 - `eval_js` (extract structured data from page)
 - `write_markdown`, `append_markdown_section` (persist extracted data as `.md`)
 - `assert_markdown` (acceptance check)
@@ -109,8 +109,8 @@ Screenshot/copy-image supports three granularities:
 - Coordinate region: `{"action":"screenshot","params":{"path":"...","clip":{"x":100,"y":200,"width":300,"height":220}}}`
 
 For image preservation, prefer original-source copy:
-- `{"action":"copy_image_original","target":"img#qr","params":{"path":"./artifacts/qr.png"}}`
-- Or `copy_image` with `{"mode":"original"}` when selector is available.
+- `{"action":"download_image","target":"img#qr","params":{"path":"./artifacts/qr.png"}}`
+- Or `capture_image` with `{"mode":"original"}` when selector is available.
 
 ## Parametric Reuse (Important)
 

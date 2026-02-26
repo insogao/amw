@@ -1,6 +1,6 @@
 ---
 name: amw-memory-operator
-description: 使用 replay-first 浏览器记忆方式运行与演进 agent-memory-workbench；适用于轨迹检索、探测/调试、trace 复盘与最小化 JSON 修补（严格两分支：normal + challenge-handling）。
+description: 使用 replay-first 浏览器记忆方式运行与演进 agent-memory-workbench；适用于轨迹检索、探测/调试、trace 复盘与最小化 JSON 修补（仅允许两条执行分支：normal 主流程 + challenge-handling 阻断处理）。
 ---
 
 # AMW Memory Operator
@@ -18,7 +18,7 @@ Skill Version: `v0.1.9`
 
 ## 硬性规则
 
-1. 最多两个分支：`normal` + `challenge-handling`。
+1. 只允许两个分支，且固定为：`normal` + `challenge-handling`。
 2. 默认走 autonomous probe，不默认走 manual observe。
 3. 手动 `observe` 必须先获得用户明确同意。
 4. Probe 证据包必备：优先使用一个 `snapshot` 步骤同步生成 `snapshot.json` 与 `screenshot.png`，阅读顺序先 snapshot。
@@ -26,12 +26,19 @@ Skill Version: `v0.1.9`
 6. 选择器优先级：snapshot refs / 语义定位优先，CSS 最后兜底。
 7. 工具优先策略：优先使用 AMW 内建 actions，再考虑外部方案。
 
+## 两分支定义（无歧义）
+
+1. `normal`：主流程分支，承担目标任务的正常步骤（打开页面、输入、点击、提取、写文件）。
+2. `challenge-handling`：仅在遇到阻断时进入（如验证码、扫码门槛、风险页、同意弹窗）。
+3. 禁止新增第三分支；禁止分支嵌套分支。
+4. 阻断解除后必须回到 `normal` 继续执行，不允许长期停留在 `challenge-handling`。
+
 ## 工具门禁（必走）
 
 在创建或修补 trajectory JSON 前，必须按顺序执行：
 
 1. 先在 `src-node/actionRegistry.js` 确认可用 AMW actions。
-2. 任务若可由 AMW 原生 action 完成（`snapshot`、`eval_js`、`copy_image`、`copy_image_original`、`write_markdown` 等），必须直接使用。
+2. 任务若可由 AMW 原生 action 完成（`snapshot`、`eval_js`、`capture_image`、`download_image`、`write_markdown` 等），必须直接使用。
 3. 本 skill 激活时，不要切换到无关 skill/workflow。
 4. 禁止直接用 Python/Node 辅助脚本兜底，除非：
    - 用户明确要求外部脚本；或
@@ -76,7 +83,7 @@ Feature: AMW 运行决策
     Given 出现 captcha/qr/risk/consent 等阻断
     When 进入 challenge-handling 分支
     Then 正常分支保持不变
-    And 保存阻断证据（优先 copy_image_original）
+    And 保存阻断证据（优先 download_image）
     And 无法自动通过时请求 human_handoff 或快速失败并说明原因
 
   Scenario: probe 成功后提升
@@ -95,7 +102,7 @@ Feature: AMW 运行决策
 
 ## 资源地图
 
-- 两分支约定：`references/json-two-branch-contract.md`
+- 两分支字段与触发规则（仅 `normal` + `challenge-handling`）：`references/json-two-branch-contract.md`
 - Replay/调试检查单：`references/replay-debug-checklist.md`
 - 命令模板：`references/command-templates.md`
 - JSON 示例：`assets/json-demos/*.json`
@@ -151,8 +158,8 @@ Feature: AMW 运行决策
 文本与图片：
 
 1. `copy_text` / `paste_text`：文本复制与粘贴（运行时剪贴板变量）。
-2. `copy_image`：截图式图片复制（元素或 clip）。
-3. `copy_image_original`：下载原图到文件（下载任务首选）。
+2. `capture_image`：截图式图片抓取（元素或 clip）。
+3. `download_image`：下载原图到文件（下载任务首选）。
 4. `paste_image`：将文件写入 `<input type="file">`。
 
 产物与校验：

@@ -159,14 +159,14 @@ export function createDefaultActionRegistry() {
       }
       return { pasted: true, type: "text", chars: text.length };
     }],
-    ["copy_image", async ({ adapter, runtime, step }) => {
+    ["capture_image", async ({ adapter, runtime, step }) => {
       const selector = String(step.params?.selector || step.target || "").trim();
       const outputPath = String(step.params?.path || step.value || "").trim();
       const clip = resolveClip(step.params);
       const wantsOriginal = Boolean(step.params?.original ?? false) || String(step.params?.mode || "").toLowerCase() === "original";
       const originalMode = wantsOriginal && Boolean(selector);
       if (!selector && !clip) {
-        throw new Error("copy_image requires selector (target/params.selector) or clip (params.clip/x/y/width/height)");
+        throw new Error("capture_image requires selector (target/params.selector) or clip (params.clip/x/y/width/height)");
       }
       const result = originalMode
         ? await adapter.copyImageOriginal({
@@ -176,7 +176,7 @@ export function createDefaultActionRegistry() {
             timeoutMs: step.timeout_ms
           })
         : await adapter.screenshot({
-            path: outputPath || `./artifacts/copied_image_${Date.now()}.png`,
+            path: outputPath || `./artifacts/captured_image_${Date.now()}.png`,
             selector,
             clip,
             fullPage: false,
@@ -188,11 +188,11 @@ export function createDefaultActionRegistry() {
       const saveAs = String(step.params?.save_as || "").trim();
       if (saveAs) setRuntimeVar(runtime, saveAs, result.path);
       runtime.artifacts.generated_files.push(result.path);
-      return { copied: true, type: "image", path: result.path };
+      return { captured: true, type: "image", path: result.path };
     }],
-    ["copy_image_original", async ({ adapter, runtime, step }) => {
+    ["download_image", async ({ adapter, runtime, step }) => {
       const selector = String(step.params?.selector || step.target || "").trim();
-      if (!selector) throw new Error("copy_image_original requires selector in target or params.selector");
+      if (!selector) throw new Error("download_image requires selector in target or params.selector");
       const outputPath = String(step.params?.path || step.value || "").trim();
       const result = await adapter.copyImageOriginal({
         selector,
@@ -206,7 +206,7 @@ export function createDefaultActionRegistry() {
       const saveAs = String(step.params?.save_as || "").trim();
       if (saveAs) setRuntimeVar(runtime, saveAs, result.path);
       runtime.artifacts.generated_files.push(result.path);
-      return { copied: true, type: "image_original", path: result.path, source: result.source };
+      return { downloaded: true, type: "image_original", path: result.path, source: result.source };
     }],
     ["paste_image", async ({ adapter, runtime, step }) => {
       const selector = String(step.target || step.params?.selector || "").trim();
@@ -308,8 +308,8 @@ export function createDefaultActionRegistry() {
       return adapter.evaluate(script, arg);
     }],
     ["write_markdown", async ({ runtime, step }) => {
-      const outPath = String(step.target || step.value || step.params?.path || "").trim();
-      if (!outPath) throw new Error("write_markdown requires output path in target/value/params.path");
+      const outputPath = String(step.target || step.value || step.params?.path || "").trim();
+      if (!outputPath) throw new Error("write_markdown requires output path in target/value/params.path");
 
       const title = String(step.params?.title || "Generated Results");
       const itemsRef = String(step.params?.items_var || "").trim();
@@ -321,18 +321,18 @@ export function createDefaultActionRegistry() {
 
       const items = rawItems.map(normalizeItem).filter((x) => x.title || x.url);
       const markdown = buildMarkdown({ title, items });
-      const absolute = path.resolve(outPath);
-      fs.mkdirSync(path.dirname(absolute), { recursive: true });
-      fs.writeFileSync(absolute, markdown, "utf-8");
-      runtime.artifacts.generated_files.push(absolute);
-      return { path: absolute, items: items.length };
+      const absoluteOutputPath = path.resolve(outputPath);
+      fs.mkdirSync(path.dirname(absoluteOutputPath), { recursive: true });
+      fs.writeFileSync(absoluteOutputPath, markdown, "utf-8");
+      runtime.artifacts.generated_files.push(absoluteOutputPath);
+      return { path: absoluteOutputPath, items: items.length };
     }],
     ["append_markdown_section", async ({ runtime, step }) => {
-      const inPath = String(step.target || step.value || step.params?.path || "").trim();
-      if (!inPath) throw new Error("append_markdown_section requires path");
+      const inputPath = String(step.target || step.value || step.params?.path || "").trim();
+      if (!inputPath) throw new Error("append_markdown_section requires path");
 
-      const absolute = toAbsoluteFilePath(inPath);
-      fs.mkdirSync(path.dirname(absolute), { recursive: true });
+      const absoluteInputPath = toAbsoluteFilePath(inputPath);
+      fs.mkdirSync(path.dirname(absoluteInputPath), { recursive: true });
 
       const heading = String(step.params?.heading || "").trim();
       const content = String(step.params?.content || "").trim();
@@ -349,34 +349,34 @@ export function createDefaultActionRegistry() {
       if (content) lines.push(content);
       lines.push("");
 
-      fs.appendFileSync(absolute, lines.join("\n"), "utf-8");
-      if (!runtime.artifacts.generated_files.includes(absolute)) {
-        runtime.artifacts.generated_files.push(absolute);
+      fs.appendFileSync(absoluteInputPath, lines.join("\n"), "utf-8");
+      if (!runtime.artifacts.generated_files.includes(absoluteInputPath)) {
+        runtime.artifacts.generated_files.push(absoluteInputPath);
       }
-      return { path: absolute, appended: true };
+      return { path: absoluteInputPath, appended: true };
     }],
     ["assert_file", async ({ step }) => {
-      const inPath = String(step.target || step.value || step.params?.path || "").trim();
-      if (!inPath) throw new Error("assert_file requires path");
-      const absolute = toAbsoluteFilePath(inPath);
-      if (!fs.existsSync(absolute)) {
-        throw new Error(`File not found: ${absolute}`);
+      const inputPath = String(step.target || step.value || step.params?.path || "").trim();
+      if (!inputPath) throw new Error("assert_file requires path");
+      const absoluteInputPath = toAbsoluteFilePath(inputPath);
+      if (!fs.existsSync(absoluteInputPath)) {
+        throw new Error(`File not found: ${absoluteInputPath}`);
       }
-      const stat = fs.statSync(absolute);
+      const stat = fs.statSync(absoluteInputPath);
       const minBytes = Number(step.params?.min_bytes ?? 1);
       if (stat.size < minBytes) {
         throw new Error(`File size ${stat.size} < expected ${minBytes}`);
       }
-      return { path: absolute, size: stat.size };
+      return { path: absoluteInputPath, size: stat.size };
     }],
     ["assert_markdown", async ({ step }) => {
-      const inPath = String(step.target || step.value || step.params?.path || "").trim();
-      if (!inPath) throw new Error("assert_markdown requires input path in target/value/params.path");
-      const absolute = path.resolve(inPath);
-      if (!fs.existsSync(absolute)) {
-        throw new Error(`Markdown file not found: ${absolute}`);
+      const inputPath = String(step.target || step.value || step.params?.path || "").trim();
+      if (!inputPath) throw new Error("assert_markdown requires input path in target/value/params.path");
+      const absoluteInputPath = path.resolve(inputPath);
+      if (!fs.existsSync(absoluteInputPath)) {
+        throw new Error(`Markdown file not found: ${absoluteInputPath}`);
       }
-      const text = fs.readFileSync(absolute, "utf-8");
+      const text = fs.readFileSync(absoluteInputPath, "utf-8");
       const links = [...text.matchAll(/\[[^\]]+\]\((https?:\/\/[^)]+)\)/g)];
       const minLinks = Number(step.params?.min_links ?? 1);
       if (links.length < minLinks) {
@@ -388,7 +388,7 @@ export function createDefaultActionRegistry() {
           throw new Error(`Markdown missing required token: ${token}`);
         }
       }
-      return { path: absolute, link_count: links.length };
+      return { path: absoluteInputPath, link_count: links.length };
     }]
   ]);
 }
