@@ -150,7 +150,7 @@ Feature: AMW 运行决策
 
 页面观测：
 
-1. `snapshot`：获取压缩骨架；interactive + `path` 场景可同步产出 screenshot（`bundle_with_screenshot=true`）。
+1. `snapshot`：获取压缩骨架；设置 `path` 后默认同时产出 snapshot JSON 和 screenshot PNG（先读文本骨架，再看截图）。
 2. `screenshot`：截图（整页/selector/clip）。
 3. `eval_js`：执行页面脚本提取结构化信息。
 4. `get_url`：读取当前 URL。

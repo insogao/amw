@@ -79,7 +79,21 @@ export class AgentBrowserAdapter {
         "Run snapshot(interactive=true) before using @eN selectors."
       );
     }
-    return String(mapped).trim();
+    if (typeof mapped === "string") {
+      return mapped.trim();
+    }
+    if (mapped && typeof mapped === "object") {
+      const candidate = String(
+        mapped.selector ??
+        mapped.css ??
+        mapped.locator ??
+        ""
+      ).trim();
+      if (candidate) return candidate;
+    }
+    throw new AgentBrowserError(
+      `Ref selector '${selector}' has unsupported mapped value type: ${typeof mapped}`
+    );
   }
 
   #parseLocatorExpression(page, expression) {

@@ -23,8 +23,7 @@
   "value": "interactive",
   "params": {
     "save_as": "probe_snapshot_data",
-    "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json",
-    "bundle_with_screenshot": true
+    "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json"
   }
 },
 {

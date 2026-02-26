@@ -35,7 +35,7 @@ Probe 产物统一写入：
 - `{{context.site}}_{{context.task_type}}_snapshot.json`
 - `{{context.site}}_{{context.task_type}}_screenshot.png`
 
-提示：推荐在同一个 `snapshot` 步骤中设置 `bundle_with_screenshot=true`，自动产出上述两份文件，无需再单独加 `screenshot` 步骤。
+提示：`snapshot` 只要设置了 `path`，默认会自动产出上述两份文件，无需再单独加 `screenshot` 步骤。
 
 ## 校验
 

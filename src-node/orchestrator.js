@@ -6,58 +6,6 @@ import { TrajectoryExecutor } from "./trajectoryExecutor.js";
 import { buildTrajectory } from "./types.js";
 import { domainFromSiteOrUrl, shortId } from "./utils.js";
 
-function normalizeStepClone(step) {
-  if (!step || typeof step !== "object" || Array.isArray(step)) return step;
-  const cloned = { ...step };
-  if (cloned.params && typeof cloned.params === "object" && !Array.isArray(cloned.params)) {
-    cloned.params = { ...cloned.params };
-  }
-  return cloned;
-}
-
-function isSnapshotStep(step) {
-  return String(step?.action ?? "").trim() === "snapshot";
-}
-
-function isScreenshotStep(step) {
-  return String(step?.action ?? "").trim() === "screenshot";
-}
-
-function isProbeLikeRequest(request) {
-  const taskType = String(request?.task_type ?? "").toLowerCase();
-  const intent = String(request?.intent ?? "").toLowerCase();
-  const disableReplay = Boolean(request?.disable_replay);
-  return disableReplay || taskType.includes("probe") || intent.includes("probe");
-}
-
-function buildAutoProbeScreenshotPath(request) {
-  const site = domainFromSiteOrUrl(request?.site || "site");
-  const taskType = String(request?.task_type || "task").trim().replace(/[^A-Za-z0-9._-]+/g, "_");
-  return `./artifacts/probes/${site}_${taskType}_screenshot.png`;
-}
-
-export function ensureProbeEvidenceBundleSteps(steps, request) {
-  const cloned = Array.isArray(steps) ? steps.map(normalizeStepClone) : [];
-  if (cloned.length === 0) return cloned;
-  if (!isProbeLikeRequest(request)) return cloned;
-
-  const firstSnapshotIndex = cloned.findIndex((s) => isSnapshotStep(s));
-  if (firstSnapshotIndex < 0) return cloned;
-  const hasScreenshot = cloned.some((s) => isScreenshotStep(s));
-  if (hasScreenshot) return cloned;
-
-  const screenshotStep = {
-    id: "probe_screenshot_auto",
-    action: "screenshot",
-    params: {
-      path: buildAutoProbeScreenshotPath(request),
-      full_page: true
-    }
-  };
-  cloned.splice(firstSnapshotIndex + 1, 0, screenshotStep);
-  return cloned;
-}
-
 export class MemoryOrchestrator {
   constructor({ store, dataDir, binary = "agent-browser" }) {
     this.store = store;
@@ -153,16 +101,7 @@ export class MemoryOrchestrator {
         };
       }
 
-      const normalizedFallbackSteps = ensureProbeEvidenceBundleSteps(fallbackSteps, request);
-      if (normalizedFallbackSteps.length !== fallbackSteps.length) {
-        logger.event("probe_screenshot_auto_injected", {
-          reason: "snapshot_present_without_screenshot",
-          added_step_id: "probe_screenshot_auto",
-          path: buildAutoProbeScreenshotPath(request)
-        });
-      }
-
-      const fallbackTrajectory = this.#buildFallbackTrajectory(request, normalizedFallbackSteps);
+      const fallbackTrajectory = this.#buildFallbackTrajectory(request, fallbackSteps);
       const fallbackResult = await executor.replay(fallbackTrajectory);
       if (fallbackResult.success) {
         this.store.saveTrajectory(fallbackTrajectory);

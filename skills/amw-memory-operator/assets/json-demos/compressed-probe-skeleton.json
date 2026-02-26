@@ -2,7 +2,7 @@
   "amw_match_line": "amw site:example.com task:probe flow:compressed_probe_v1 key:probe key:snapshot key:interactive",
   "metadata": {
     "purpose": "compressed-first probing",
-    "note": "keep probe prelude at top; use one snapshot step with bundle_with_screenshot=true to generate snapshot json and screenshot png together"
+    "note": "keep probe prelude at top; one snapshot step with path will generate snapshot json and screenshot png together by default"
   },
   "steps": [
     {
@@ -16,8 +16,7 @@
       "value": "interactive",
       "params": {
         "save_as": "probe_snapshot_data",
-        "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json",
-        "bundle_with_screenshot": true
+        "path": "./artifacts/probes/{{context.site}}_{{context.task_type}}_snapshot.json"
       }
     },
     {

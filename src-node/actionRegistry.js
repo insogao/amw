@@ -239,7 +239,7 @@ export function createDefaultActionRegistry() {
       const interactive = ["1", "true", "i", "interactive"].includes(interactiveToken);
       const result = await adapter.snapshot(interactive);
       const outputPath = String(step.params?.path || "").trim();
-      const defaultBundle = Boolean(interactive && outputPath);
+      const defaultBundle = Boolean(outputPath);
       const bundleWithScreenshot = step.params?.bundle_with_screenshot === undefined
         ? defaultBundle
         : Boolean(step.params?.bundle_with_screenshot);
